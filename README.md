@@ -13,8 +13,8 @@
 ### 1. 克隆或下载项目
 
 ```bash
-git clone https://github.com/yourusername/telegram-monitor.git
-cd telegram-monitor
+git clone https://github.com/DJKS666/tg-monitor.git
+cd tg-monitor
 
 ```
 
