@@ -42,7 +42,6 @@ def setup_logger():
 
 logger = setup_logger()
 
-# === 数据结构 ===
 
 # 关键词配置，每个关键词对应一个配置字典
 KEYWORD_CONFIG = {}  # {keyword: {'chats': [chat_ids], 'auto_forward': True/False, 'email_notify': True/False, 'forward_targets': [target_ids]}}
