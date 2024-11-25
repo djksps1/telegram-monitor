@@ -13,15 +13,13 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import os
 import pytz  
-# import aioconsole  # 异步输入
 
-# === 配置部分 ===
 # 邮件配置
-SMTP_SERVER = ""
-SMTP_PORT = 465  # SSL 端口
-SENDER_EMAIL = ""  # 发件人邮箱
-EMAIL_PASSWORD = ""  # 邮箱授权码或专用密码
-RECIPIENT_EMAIL = ""  # 收件人邮箱
+SMTP_SERVER = "smtp.qq.com"          # SMTP 服务器，例如 QQ 邮箱
+SMTP_PORT = 465                      # SMTP 端口，通常为 465
+SENDER_EMAIL = "您的邮箱@example.com"  # 发件人邮箱
+EMAIL_PASSWORD = "您的邮箱授权码"      # 邮箱授权码或密码
+RECIPIENT_EMAIL = "收件人邮箱@example.com"  # 收件人邮箱
 
 # === 日志配置 ===
 def setup_logger():
