@@ -21,7 +21,7 @@ SENDER_EMAIL = "您的邮箱@example.com"  # 发件人邮箱
 EMAIL_PASSWORD = "您的邮箱授权码"      # 邮箱授权码或密码
 RECIPIENT_EMAIL = "收件人邮箱@example.com"  # 收件人邮箱
 
-# === 日志配置 ===
+# 日志配置 
 def setup_logger():
     """配置日志"""
     logger = logging.getLogger('telegram_monitor')
