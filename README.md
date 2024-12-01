@@ -61,7 +61,7 @@ pip install -r -requirements.txt
 
 
 ```bash
-python telegram_monitor.py
+python monitor.py
 ```
  
 2. **登录 Telegram** ： 
