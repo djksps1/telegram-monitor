@@ -53,6 +53,12 @@ pip install -r -requirements.txt
  
 4. **配置邮件服务器（可选）** ：
   - 如果您需要使用邮件通知功能，请在代码中配置 SMTP 服务器信息和发件人、收件人邮箱。
+  - # 邮件配置
+SMTP_SERVER = "smtp.qq.com"          # SMTP 服务器，例如 QQ 邮箱
+SMTP_PORT = 465                      # SMTP 端口，通常为 465
+SENDER_EMAIL = "您的邮箱@example.com"  # 发件人邮箱
+EMAIL_PASSWORD = "您的邮箱授权码"      # 邮箱授权码或密码
+RECIPIENT_EMAIL = "收件人邮箱@example.com"  # 收件人邮箱
 
 ## 使用说明 
  
