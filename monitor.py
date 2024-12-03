@@ -13,7 +13,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import os
 import pytz
-import re  # 导入正则表达式模块
+import re  
+import random
 
 # === 配置部分 ===
 # 邮件配置
