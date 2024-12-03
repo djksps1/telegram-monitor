@@ -56,7 +56,6 @@ FILE_EXTENSION_CONFIG = {}  # {extension: {'chats': [chat_ids], 'auto_forward': 
 # 定时消息配置
 SCHEDULED_MESSAGES = []  # [{'job_id': str, 'target_id': int, 'message': str, 'cron': str, 'random_offset': int, 'delete_after_sending': bool}]
 
-# === 邮件发送功能 ===
 def send_email(message_text):
     """发送邮件"""
     try:
@@ -71,12 +70,18 @@ def send_email(message_text):
         message.attach(body)
 
         # 连接到 SMTP 服务器并发送邮件
-        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
-            server.login(SENDER_EMAIL, EMAIL_PASSWORD)
-            server.sendmail(SENDER_EMAIL, RECIPIENT_EMAIL, message.as_string())
+        server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT)
+        server.login(SENDER_EMAIL, EMAIL_PASSWORD)
+        server.sendmail(SENDER_EMAIL, RECIPIENT_EMAIL, message.as_string())
         logger.info("邮件发送成功")
     except Exception as e:
         logger.error(f"邮件发送失败: {e}")
+    finally:
+        try:
+            server.quit()
+        except Exception as e:
+            # 忽略在关闭连接时的异常
+            pass
 
 # === 自定义异步输入函数 ===
 async def ainput(prompt: str = '') -> str:
@@ -88,7 +93,7 @@ async def ainput(prompt: str = '') -> str:
 # === 消息处理函数 ===
 async def message_handler(event):
     """处理新消息"""
-    global monitor_active
+    global monitor_active, own_user_id  # 引用 own_user_id
 
     if not monitor_active:
         return
@@ -101,6 +106,12 @@ async def message_handler(event):
         sender = await event.get_sender()
         # 获取发送者信息
         sender_id = sender.id if sender else None
+
+        # 添加判断，跳过自己发送的消息
+        if sender_id == own_user_id:
+            return  # 跳过自己发送的消息
+
+        # 定义 sender_username
         sender_username = sender.username.lower() if sender and sender.username else None
 
         # 将发送者 ID 和用户名存储，用于匹配
@@ -781,7 +792,7 @@ async def telegram_login(client):
 # === 主程序 ===
 async def main():
     """主程序"""
-    global monitor_active, client, scheduler  # 声明全局变量
+    global monitor_active, client, scheduler, own_user_id  # 声明全局变量，包括 own_user_id
 
     logger.info('启动Telegram监控程序...')
 
@@ -799,6 +810,10 @@ async def main():
         # 检查是否需要登录
         if not await client.is_user_authorized():
             await telegram_login(client)
+
+        # 获取当前用户的 ID
+        me = await client.get_me()
+        own_user_id = me.id  # 保存当前用户的 ID
 
         # 注册消息处理器，不使用 chats 参数
         client.add_event_handler(message_handler, events.NewMessage())
