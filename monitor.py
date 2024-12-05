@@ -175,9 +175,10 @@ async def message_handler(event):
                     config = FILE_EXTENSION_CONFIG.get(file_extension)
                     if config and chat_id in config['chats']:
                         user_set = config.get('users', set())
+                        user_option = config.get('user_option')  # 获取用户类型选项
 
                         # 使用 match_user 函数判断是否匹配用户
-                        if not match_user(sender, user_set):
+                        if not match_user(sender, user_set, user_option):
                             return  # 不匹配指定用户，跳过此配置
 
                         logger.info(f"检测到文件后缀名 {file_extension} 的文件：{file_name} 在对话 {chat_id} 中")
@@ -519,17 +520,36 @@ async def handle_commands(client):
                 chat_ids_input = (await ainput("请输入要监听的对话ID，多个ID用逗号分隔: ")).strip()
                 chat_ids = [int(tid.strip()) for tid in chat_ids_input.split(',')]
 
-                users_input = (await ainput("是否只监听指定用户发送的文件？输入用户名或用户ID，多个用逗号分隔（留空表示监听所有用户）: ")).strip()
-                if users_input:
-                    user_list = [u.strip().lower() for u in users_input.split(',')]
-                    user_set = set()
-                    for u in user_list:
-                        if u.isdigit():
-                            user_set.add(int(u))  # 用户ID
-                        else:
-                            user_set.add(u)  # 用户名
+                # 添加用户类型选择
+                print("\n请选择要指定的用户类型：")
+                print("1. 用户ID")
+                print("2. 用户名")
+                print("3. 昵称")
+                user_option = (await ainput("请输入选项编号（1/2/3，直接回车表示监听所有用户）: ")).strip()
+
+                if user_option in ['1', '2', '3']:
+                    users_input = (await ainput("请输入对应的用户标识，多个用逗号分隔: ")).strip()
+                    if users_input:
+                        user_list = [u.strip() for u in users_input.split(',')]
+                        user_set = set()
+                        for u in user_list:
+                            if user_option == '1':
+                                # 用户ID
+                                if u.isdigit():
+                                    user_set.add(int(u))
+                                else:
+                                    print(f"用户ID应为数字，输入无效：{u}")
+                            elif user_option == '2':
+                                # 用户名
+                                user_set.add(u.lower())
+                            elif user_option == '3':
+                                # 昵称
+                                user_set.add(u)
+                    else:
+                        user_set = set()
                 else:
-                    user_set = set()
+                    user_option = None
+                    user_set = set()  # 未选择或直接回车，监听所有用户
 
                 auto_forward = (await ainput("是否启用自动转发功能？(yes/no): ")).strip().lower() == 'yes'
 
@@ -544,7 +564,8 @@ async def handle_commands(client):
                     config = {
                         'chats': chat_ids,
                         'auto_forward': auto_forward,
-                        'users': user_set
+                        'users': user_set,
+                        'user_option': user_option  # 保存用户类型选项
                     }
                     if auto_forward:
                         config['forward_targets'] = target_ids
@@ -602,18 +623,38 @@ async def handle_commands(client):
 
                     # 修改监听的用户
                     if '4' in options:
-                        users_input = (await ainput("请输入新的用户名或用户ID，多个用逗号分隔（留空表示监听所有用户）: ")).strip()
-                        if users_input:
-                            user_list = [u.strip().lower() for u in users_input.split(',')]
-                            user_set = set()
-                            for u in user_list:
-                                if u.isdigit():
-                                    user_set.add(int(u))
-                                else:
-                                    user_set.add(u)
+                        print("\n请选择要指定的用户类型：")
+                        print("1. 用户ID")
+                        print("2. 用户名")
+                        print("3. 昵称")
+                        user_option = (await ainput("请输入选项编号（1/2/3，直接回车表示监听所有用户）: ")).strip()
+
+                        if user_option in ['1', '2', '3']:
+                            users_input = (await ainput("请输入对应的用户标识，多个用逗号分隔: ")).strip()
+                            if users_input:
+                                user_list = [u.strip() for u in users_input.split(',')]
+                                user_set = set()
+                                for u in user_list:
+                                    if user_option == '1':
+                                        # 用户ID
+                                        if u.isdigit():
+                                            user_set.add(int(u))
+                                        else:
+                                            print(f"用户ID应为数字，输入无效：{u}")
+                                    elif user_option == '2':
+                                        # 用户名
+                                        user_set.add(u.lower())
+                                    elif user_option == '3':
+                                        # 昵称
+                                        user_set.add(u)
+                            else:
+                                user_set = set()
                         else:
-                            user_set = set()
+                            user_option = None
+                            user_set = set()  # 未选择或直接回车，监听所有用户
+
                         FILE_EXTENSION_CONFIG[extension_input]['users'] = user_set
+                        FILE_EXTENSION_CONFIG[extension_input]['user_option'] = user_option
                         print(f"监听的用户已更新为：{user_set if user_set else '所有用户'}")
 
                     print(f"文件后缀名 '{extension_input}' 的新配置：{FILE_EXTENSION_CONFIG[extension_input]}")
