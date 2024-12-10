@@ -1,3 +1,4 @@
 telethon
+asyncio
 apscheduler
 pytz
