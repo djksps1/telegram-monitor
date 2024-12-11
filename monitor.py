@@ -15,14 +15,25 @@ import os
 import pytz
 import re
 import random
+import shutil
+import base64
+from openai import OpenAI
+
+# 配置OneAPI
+ONEAPI_KEY = "你的 OneAPI 令牌"  # 替换为实际的 OneAPI 令牌
+ONEAPI_BASE_URL = "http://你的 OneAPI 地址/v1"  # OneAPI 的服务地址
+
+client_ai = OpenAI(
+    api_key=ONEAPI_KEY,
+    base_url=ONEAPI_BASE_URL
+)
 
 # === 配置部分 ===
-SMTP_SERVER = "smtp.qq.com"
-SMTP_PORT = 465
-SENDER_EMAIL = "2812748099@qq.com"  
-EMAIL_PASSWORD = "fcokpgjunahwdegj"  
-RECIPIENT_EMAIL = "2019452574@qq.com"
-
+SMTP_SERVER = "smtp.qq.com"          # SMTP 服务器，例如 QQ 邮箱
+SMTP_PORT = 465                      # SMTP 端口，通常为 465
+SENDER_EMAIL = "您的邮箱@example.com"  # 发件人邮箱
+EMAIL_PASSWORD = "您的邮箱授权码"      # 邮箱授权码或密码
+RECIPIENT_EMAIL = "收件人邮箱@example.com"  # 收件人邮箱
 def setup_logger():
     """配置日志"""
     logger = logging.getLogger('telegram_monitor')
@@ -46,8 +57,16 @@ logger = setup_logger()
 KEYWORD_CONFIG = {}
 FILE_EXTENSION_CONFIG = {}
 SCHEDULED_MESSAGES = []
-# 格式：ALL_MESSAGES_CONFIG = {chat_id: {'auto_forward': bool, 'email_notify': bool, 'forward_targets': [int], 'users': set(), 'user_option': '1'/'2'/'3'/None}}
+
 ALL_MESSAGES_CONFIG = {}
+BUTTON_KEYWORD_CONFIG = {}
+IMAGE_BUTTON_MONITOR = set()  # 定义IMAGE_BUTTON_MONITOR
+
+processed_messages = set()
+
+monitor_active = False
+client = None
+scheduler = AsyncIOScheduler()
 
 # === 异步输入函数 ===
 async def ainput(prompt: str = '') -> str:
@@ -79,8 +98,6 @@ def send_email(message_text):
         except:
             pass
 
-# 在文件的其他部分（函数外）定义一个全局集合，用于记录已处理过的消息
-processed_messages = set()
 
 async def message_handler(event):
     global monitor_active, own_user_id, processed_messages
@@ -93,7 +110,6 @@ async def message_handler(event):
     message_text = event.raw_text or ''
     message_text_lower = message_text.lower().strip()
 
-    # 如果该消息已处理过，则直接跳过
     if (chat_id, message_id) in processed_messages:
         return
     processed_messages.add((chat_id, message_id))
@@ -102,13 +118,10 @@ async def message_handler(event):
         sender = await event.get_sender()
         sender_id = sender.id if sender else None
 
-        # 跳过自己发送的消息
         if sender_id == own_user_id:
             return
 
-        sender_username = sender.username.lower() if sender and sender.username else None
-
-        # 全量监控逻辑
+        # 全量监控
         if chat_id in ALL_MESSAGES_CONFIG:
             config = ALL_MESSAGES_CONFIG[chat_id]
             user_set = config.get('users', set())
@@ -120,27 +133,27 @@ async def message_handler(event):
                     target_ids = config.get('forward_targets', [])
                     for target_id in target_ids:
                         await client.forward_messages(target_id, event.message)
-                        logger.info(f"已将对话 {chat_id} 中的消息转发到ID: {target_id}")
-
+                        logger.info(f"已转发对话 {chat_id} 的消息到ID: {target_id}")
         else:
-            # 关键词匹配逻辑
+            # 关键词监控
+            handled = False
             for keyword, config in KEYWORD_CONFIG.items():
                 if chat_id in config['chats']:
-                    match_type = config.get('match_type', 'partial')
                     user_set = config.get('users', set())
                     user_option = config.get('user_option')
 
                     if not match_user(sender, user_set, user_option):
                         continue
 
+                    match_type = config.get('match_type', 'partial')
+
                     if match_type == 'exact':
                         if message_text_lower == keyword:
-                            logger.info(f'检测到完全匹配关键词 "{keyword}" 在对话 {chat_id} 中的消息: {message_text}')
+                            logger.info(f"检测到完全匹配关键词 '{keyword}' 在对话 {chat_id} 中的消息: {message_text}")
                             if config.get('email_notify'):
                                 send_email(f"检测到完全匹配关键词 '{keyword}' 的消息: {message_text}")
                             if config.get('auto_forward'):
                                 await auto_forward_message(event, keyword)
-                            # 新增：写入log_file
                             log_file = config.get('log_file')
                             if log_file:
                                 try:
@@ -149,16 +162,16 @@ async def message_handler(event):
                                     logger.info(f"已将匹配关键词 '{keyword}' 的消息写入文件: {log_file}")
                                 except Exception as e:
                                     logger.error(f"写入文件 {log_file} 时发生错误：{e}")
+                            handled = True
                             break
 
                     elif match_type == 'partial':
                         if keyword in message_text_lower:
-                            logger.info(f'检测到关键词 "{keyword}" 在对话 {chat_id} 中的消息: {message_text}')
+                            logger.info(f"检测到关键词 '{keyword}' 在对话 {chat_id} 中的消息: {message_text}")
                             if config.get('email_notify'):
                                 send_email(f"检测到关键词 '{keyword}' 的消息: {message_text}")
                             if config.get('auto_forward'):
                                 await auto_forward_message(event, keyword)
-                            # 新增：写入log_file
                             log_file = config.get('log_file')
                             if log_file:
                                 try:
@@ -167,17 +180,18 @@ async def message_handler(event):
                                     logger.info(f"已将匹配关键词 '{keyword}' 的消息写入文件: {log_file}")
                                 except Exception as e:
                                     logger.error(f"写入文件 {log_file} 时发生错误：{e}")
+                            handled = True
                             break
 
                     elif match_type == 'regex':
                         pattern = re.compile(rf'{keyword}')
-                        if pattern.search(message_text):
-                            logger.info(f'检测到正则匹配 "{keyword}" 在对话 {chat_id} 中的消息: {message_text}')
+                        match_obj = pattern.search(message_text)
+                        if match_obj:
+                            logger.info(f"检测到正则匹配 '{keyword}' 在对话 {chat_id} 中的消息: {message_text}")
                             if config.get('email_notify'):
                                 send_email(f"检测到正则匹配 '{keyword}' 的消息: {message_text}")
                             if config.get('auto_forward'):
                                 await auto_forward_message(event, keyword)
-                            # 新增：写入log_file
                             log_file = config.get('log_file')
                             if log_file:
                                 try:
@@ -186,9 +200,21 @@ async def message_handler(event):
                                     logger.info(f"已将匹配关键词 '{keyword}' 的消息写入文件: {log_file}")
                                 except Exception as e:
                                     logger.error(f"写入文件 {log_file} 时发生错误：{e}")
+
+                            # 新增发送正则匹配内容的逻辑
+                            # 提取匹配的文本
+                            matched_text = match_obj.group(0)
+                            if 'regex_send_target_id' in config:
+                                target_id = config['regex_send_target_id']
+                                random_offset = config.get('regex_send_random_offset', 0)
+                                delete_after_sending = config.get('regex_send_delete', False)
+                                await send_regex_matched_message(target_id, matched_text, random_offset, delete_after_sending)
+
+                            handled = True
                             break
-            else:
-                # 文件后缀名检测逻辑
+
+            # 文件后缀名监控
+            if not handled:
                 if event.message.media and isinstance(event.message.media, MessageMediaDocument):
                     file_attr = event.message.media.document.attributes
                     file_name = None
@@ -206,12 +232,104 @@ async def message_handler(event):
                                 return
                             logger.info(f"检测到文件后缀名 {file_extension} 的文件：{file_name} 在对话 {chat_id} 中")
 
-                            # 如果开启邮件通知
                             if config.get('email_notify'):
                                 send_email(f"检测到文件后缀名 '{file_extension}' 的消息：{file_name}")
-
                             if config.get('auto_forward'):
                                 await auto_forward_file_message(event, file_extension)
+
+        # 检查按钮关键词
+        if event.message.buttons:
+            for b_keyword, b_config in BUTTON_KEYWORD_CONFIG.items():
+                if chat_id in b_config['chats']:
+                    if match_user(sender, b_config.get('users', set()), b_config.get('user_option')):
+                        for row_i, row in enumerate(event.message.buttons):
+                            for col_i, button in enumerate(row):
+                                if b_keyword in button.text.lower():
+                                    await event.message.click(row_i, col_i)
+                                    logger.info(f"已点击对话 {chat_id} 中包含按钮关键词 '{b_keyword}' 的按钮: {button.text}")
+                                    return
+
+        # 图片+按钮监听
+        if chat_id in IMAGE_BUTTON_MONITOR and event.message.buttons:
+            # 下载图片
+            image_path = None
+            if event.message.photo or (event.message.document and 'image' in event.message.document.mime_type):
+                image_path = await event.message.download_media()
+            
+            if image_path and event.message.buttons:
+                base, ext = os.path.splitext(image_path)
+                if ext.lower() != '.jpg':
+                    new_image_path = base + '.jpg'
+                    shutil.move(image_path, new_image_path)
+                    image_path = new_image_path
+
+                options = []
+                for row in event.message.buttons:
+                    for button in row:
+                        options.append(button.text.strip())
+
+                prompt_options = "\n".join(options)
+                ai_prompt = f"请根据图中的内容从下列选项中选出符合图片的选项，你的回答只需要包含选项的内容，不用包含其他内容：\n{prompt_options}"
+
+                def encode_image(image_path):
+                    with open(image_path, "rb") as image_file:
+                        return base64.b64encode(image_file.read()).decode("utf-8")
+
+                base64_image = encode_image(image_path)
+                messages = [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": ai_prompt},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpg;base64,{base64_image}"}}
+                        ]
+                    }
+                ]
+                max_retries = 2  # 最大尝试次数为2次
+                attempt = 0
+                ai_answer = None
+
+                while attempt < max_retries:
+                    attempt += 1
+                    try:
+                        response = client_ai.chat.completions.create(
+                            model="gpt-4o",
+                            messages=messages
+                        )
+                        ai_answer = response.choices[0].message.content.strip()
+                        logger.info(f"AI模型返回的内容: {ai_answer}")
+                        break  
+                    except Exception as e:
+                        logger.error(f"AI模型调用时发生错误(第{attempt}次): {e}")
+                        if attempt < max_retries:
+                            logger.info("10秒后重试上传给AI模型...")
+                            await asyncio.sleep(10)
+                        else:
+                            logger.info("多次尝试仍失败，放弃上传给AI模型。")
+                            # 删除图片文件
+                            try:
+                                if os.path.exists(image_path):
+                                    os.remove(image_path)
+                                    logger.info(f"已删除图片文件：{image_path}")
+                            except Exception as e:
+                                logger.error(f"删除图片文件时发生错误: {e}")
+                            return  # 结束此消息处理，不再继续点击按钮流程
+
+                if ai_answer is None:
+                    return
+
+                for row_i, row in enumerate(event.message.buttons):
+                    for col_i, button in enumerate(row):
+                        if button.text.strip() == ai_answer:
+                            await event.message.click(row_i, col_i)
+                            logger.info(f"已点击AI模型选择的按钮: {button.text}")
+                            break
+                try:
+                    if os.path.exists(image_path):
+                        os.remove(image_path)
+                        logger.info(f"已删除图片文件：{image_path}")
+                except Exception as e:
+                    logger.error(f"删除图片文件时发生错误: {e}")
 
     except Exception as e:
         error_message = repr(e)
@@ -240,12 +358,27 @@ def match_user(sender, user_set, user_option):
     else:
         return True
 
+async def send_regex_matched_message(target_id, matched_text, random_offset=0, delete_after_sending=False):
+    try:
+        if random_offset > 0:
+            delay = random.uniform(0, random_offset)
+            logger.info(f"等待 {delay:.2f} 秒后发送正则匹配内容到ID: {target_id}")
+            await asyncio.sleep(delay)
+        sent_message = await client.send_message(target_id, matched_text)
+        logger.info(f"已发送正则匹配内容到ID: {target_id}")
+        if delete_after_sending:
+            await asyncio.sleep(5)
+            await client.delete_messages(target_id, sent_message.id)
+            logger.info(f"已删除发送的正则匹配内容消息，消息ID: {sent_message.id}")
+    except Exception as e:
+        error_message = repr(e)
+        logger.error(f"发送正则匹配消息时发生错误：{error_message}")
+
 async def auto_forward_message(event, keyword):
     try:
         config = KEYWORD_CONFIG[keyword]
         target_ids = config.get('forward_targets', [])
         
-        # 在这里增加这行代码
         chat_id = event.chat_id  # 获取当前消息的来源群组ID
 
         for target_id in target_ids:
@@ -262,8 +395,7 @@ async def auto_forward_file_message(event, file_extension):
     try:
         config = FILE_EXTENSION_CONFIG[file_extension]
         target_ids = config.get('forward_targets', [])
-        chat_id = event.chat_id  # 获取当前消息的来源群组ID
-
+        chat_id = event.chat_id  
         for target_id in target_ids:
             # 如果转发目标与当前监控群组是同一个，则跳过
             if target_id == chat_id:
@@ -302,7 +434,7 @@ async def send_scheduled_message(target_id, message, random_offset=0, delete_aft
         logger.error(f"发送定时消息时发生错误：{error_message}")
 
 async def handle_commands(client):
-    global monitor_active, KEYWORD_CONFIG, FILE_EXTENSION_CONFIG, SCHEDULED_MESSAGES, ALL_MESSAGES_CONFIG
+    global monitor_active, KEYWORD_CONFIG, FILE_EXTENSION_CONFIG, SCHEDULED_MESSAGES, ALL_MESSAGES_CONFIG, BUTTON_KEYWORD_CONFIG
 
     while True:
         print("\n=== 可用命令 ===")
@@ -326,7 +458,17 @@ async def handle_commands(client):
         print("18. start - 开始监控")
         print("19. stop - 停止监控")
         print("20. exit - 退出程序")
-       
+        # 新增按钮关键词相关命令
+        print("21. addbutton - 添加按钮关键词监控")
+        print("22. modifybutton - 修改按钮关键词监控")
+        print("23. removebutton - 移除按钮关键词监控")
+        print("24. showbuttons - 显示所有按钮关键词监控")
+        # 新增列出bot对话ID命令
+        print("25. listbotchats - 列出与bot的对话chat_id")
+        print("26. addimagelistener - 添加监听图片+按钮的对话ID")
+        print("27. removeimagelistener - 移除监听图片+按钮的对话ID")
+        print("28. showimagelistener - 显示所有监听的对话ID")
+
 
         command = (await ainput("\n请输入命令: ")).strip().lower()
 
@@ -336,6 +478,144 @@ async def handle_commands(client):
                 async for dialog in client.iter_dialogs():
                     if isinstance(dialog.entity, (Channel, Chat)):
                         print(f"ID: {dialog.id}, 名称: {dialog.name}, 类型: {'频道' if isinstance(dialog.entity, Channel) else '群组'}")
+            elif command == 'addimagelistener':
+                chat_id = int((await ainput("请输入要监听的对话ID: ")).strip())
+                IMAGE_BUTTON_MONITOR.add(chat_id)
+                print(f"已添加监听对话ID: {chat_id}")
+
+            elif command == 'removeimagelistener':
+                chat_id = int((await ainput("请输入要移除监听的对话ID: ")).strip())
+                if chat_id in IMAGE_BUTTON_MONITOR:
+                    IMAGE_BUTTON_MONITOR.remove(chat_id)
+                    print(f"已移除监听对话ID: {chat_id}")
+                else:
+                    print("该对话ID不在监听列表中")
+
+            elif command == 'showimagelistener':
+                print("\n=== 当前监听图片+按钮的对话ID列表 ===")
+                for cid in IMAGE_BUTTON_MONITOR:
+                    print(cid)
+
+            elif command == 'listbotchats':
+                print("\n=== 与Bot的对话 ===")
+                async for dialog in client.iter_dialogs():
+                    if dialog.is_user and dialog.entity.bot:
+                        print(f"Bot Name: {dialog.name}")
+                        print(f"Chat ID: {dialog.id}")
+
+            elif command == 'addbutton':
+                b_keyword = (await ainput("请输入按钮关键词: ")).strip().lower()
+                chat_ids_input = (await ainput("请输入要监听的对话ID，多个ID用逗号分隔: ")).strip()
+                chat_ids = [int(tid.strip()) for tid in chat_ids_input.split(',')]
+
+                print("\n请选择要指定的用户类型：")
+                print("1. 用户ID")
+                print("2. 用户名")
+                print("3. 昵称")
+                user_option = (await ainput("请输入选项编号（1/2/3，直接回车表示监听所有用户）: ")).strip()
+
+                if user_option in ['1', '2', '3']:
+                    users_input = (await ainput("请输入对应的用户标识，多个用逗号分隔: ")).strip()
+                    if users_input:
+                        user_list = [u.strip() for u in users_input.split(',')]
+                        user_set = set()
+                        for u in user_list:
+                            if user_option == '1':
+                                if u.isdigit():
+                                    user_set.add(int(u))
+                                else:
+                                    print(f"用户ID应为数字，输入无效：{u}")
+                            elif user_option == '2':
+                                user_set.add(u.lower())
+                            elif user_option == '3':
+                                user_set.add(u)
+                    else:
+                        user_set = set()
+                else:
+                    user_option = None
+                    user_set = set()
+
+                BUTTON_KEYWORD_CONFIG[b_keyword] = {
+                    'chats': chat_ids,
+                    'users': user_set,
+                    'user_option': user_option
+                }
+                print(f"已添加按钮关键词 '{b_keyword}'，配置：{BUTTON_KEYWORD_CONFIG[b_keyword]}")
+
+            elif command == 'modifybutton':
+                b_keyword = (await ainput("请输入要修改的按钮关键词: ")).strip().lower()
+                if b_keyword in BUTTON_KEYWORD_CONFIG:
+                    config = BUTTON_KEYWORD_CONFIG[b_keyword]
+                    print(f"当前配置：{config}")
+
+                    print("\n可修改的项：")
+                    print("1. 按钮关键词")
+                    print("2. 监听的对话ID")
+                    print("3. 用户过滤")
+
+                    options = (await ainput("请输入要修改的项，多个项用逗号分隔（例如：1,2）: ")).strip()
+                    options = [opt.strip() for opt in options.split(',')]
+
+                    if '1' in options:
+                        new_b_keyword = (await ainput("请输入新的按钮关键词: ")).strip().lower()
+                        BUTTON_KEYWORD_CONFIG[new_b_keyword] = BUTTON_KEYWORD_CONFIG.pop(b_keyword)
+                        b_keyword = new_b_keyword
+                        print(f"按钮关键词已修改为：{new_b_keyword}")
+
+                    if '2' in options:
+                        chat_ids_input = (await ainput("请输入新的监听的对话ID，多个ID用逗号分隔: ")).strip()
+                        chat_ids = [int(tid.strip()) for tid in chat_ids_input.split(',')]
+                        BUTTON_KEYWORD_CONFIG[b_keyword]['chats'] = chat_ids
+                        print(f"监听的对话ID已更新为：{chat_ids}")
+
+                    if '3' in options:
+                        print("\n请选择要指定的用户类型：")
+                        print("1. 用户ID")
+                        print("2. 用户名")
+                        print("3. 昵称")
+                        user_option = (await ainput("请输入选项编号（1/2/3，直接回车表示监听所有用户）: ")).strip()
+
+                        if user_option in ['1', '2', '3']:
+                            users_input = (await ainput("请输入对应的用户标识，多个用逗号分隔: ")).strip()
+                            if users_input:
+                                user_list = [u.strip() for u in users_input.split(',')]
+                                user_set = set()
+                                for u in user_list:
+                                    if user_option == '1':
+                                        if u.isdigit():
+                                            user_set.add(int(u))
+                                        else:
+                                            print(f"用户ID应为数字，输入无效：{u}")
+                                    elif user_option == '2':
+                                        user_set.add(u.lower())
+                                    elif user_option == '3':
+                                        user_set.add(u)
+                            else:
+                                user_set = set()
+                        else:
+                            user_option = None
+                            user_set = set()
+
+                        BUTTON_KEYWORD_CONFIG[b_keyword]['users'] = user_set
+                        BUTTON_KEYWORD_CONFIG[b_keyword]['user_option'] = user_option
+                        print(f"用户过滤已更新为：{user_set if user_set else '所有用户'}")
+
+                    print(f"按钮关键词 '{b_keyword}' 的新配置：{BUTTON_KEYWORD_CONFIG[b_keyword]}")
+                else:
+                    print("该按钮关键词未在列表中")
+
+            elif command == 'removebutton':
+                b_keyword = (await ainput("请输入要移除的按钮关键词: ")).strip().lower()
+                if b_keyword in BUTTON_KEYWORD_CONFIG:
+                    del BUTTON_KEYWORD_CONFIG[b_keyword]
+                    print(f"已移除按钮关键词: {b_keyword}")
+                else:
+                    print("该按钮关键词未在列表中")
+
+            elif command == 'showbuttons':
+                print("\n=== 当前按钮关键词及配置 ===")
+                for b_keyword, config in BUTTON_KEYWORD_CONFIG.items():
+                    print(f"按钮关键词: {b_keyword}, 配置: {config}")
             elif command == 'addall':
                 chat_id = int((await ainput("请输入要全量监控的对话ID（频道或群组ID）: ")).strip())
                 
@@ -536,19 +816,29 @@ async def handle_commands(client):
                 auto_forward = (await ainput("是否启用自动转发功能？(yes/no): ")).strip().lower() == 'yes'
                 email_notify = (await ainput("是否启用邮件通知功能？(yes/no): ")).strip().lower() == 'yes'
 
-                # 新增：是否将匹配消息写入文件
                 log_to_file = (await ainput("是否将匹配的消息文本写入指定的.txt文件？(yes/no): ")).strip().lower() == 'yes'
                 if log_to_file:
                     log_file = (await ainput("请输入要记录消息的文本文件名称（例如 matched_messages.txt）: ")).strip()
                 else:
                     log_file = None
 
-                # 如果启用了自动转发，设置转发目标
                 if auto_forward:
                     target_ids_input = (await ainput("请输入自动转发的目标对话ID，多个ID用逗号分隔: ")).strip()
                     target_ids = [int(tid.strip()) for tid in target_ids_input.split(',')]
                 else:
                     target_ids = []
+
+                # 新增当 match_type == 'regex' 时，询问是否将匹配到的内容发送到指定对话，并设置延时删除选项
+                regex_send_target_id = None
+                regex_send_random_offset = 0
+                regex_send_delete = False
+                if match_type == 'regex':
+                    regex_send = (await ainput("是否将正则匹配到的内容发送到指定对话？(yes/no): ")).strip().lower() == 'yes'
+                    if regex_send:
+                        regex_send_target_id = int((await ainput("请输入发送匹配结果的目标对话ID: ")).strip())
+                        random_offset_input = (await ainput("请输入随机延时（秒），默认为0: ")).strip()
+                        regex_send_random_offset = int(random_offset_input) if random_offset_input else 0
+                        regex_send_delete = (await ainput("是否在发送后删除该消息？(yes/no): ")).strip().lower() == 'yes'
 
                 for keyword in keywords:
                     config = {
@@ -563,13 +853,20 @@ async def handle_commands(client):
                         config['forward_targets'] = target_ids
                         print(f"已设置关键词 '{keyword}' 的自动转发目标ID: {target_ids}")
 
-                    # 保存文件记录配置
                     if log_file:
                         config['log_file'] = log_file
                         print(f"匹配的消息将记录到文件: {log_file}")
 
+                    # 如果是正则匹配类型并且用户选择了发送匹配内容的功能，则记录下来
+                    if match_type == 'regex' and regex_send_target_id is not None:
+                        config['regex_send_target_id'] = regex_send_target_id
+                        config['regex_send_random_offset'] = regex_send_random_offset
+                        config['regex_send_delete'] = regex_send_delete
+                        print(f"正则匹配结果将发送到ID: {regex_send_target_id}, 随机延时: {regex_send_random_offset}秒, 发送后删除: {regex_send_delete}")
+
                     KEYWORD_CONFIG[keyword] = config
                     print(f"已添加关键词 '{keyword}'，配置：{config}")
+
 
             elif command == 'modifykeyword':
                 keyword_input = (await ainput("请输入要修改的关键词: ")).strip()
@@ -585,17 +882,20 @@ async def handle_commands(client):
                     print("4. 邮件通知设置")
                     print("5. 匹配类型")
                     print("6. 监听的用户")
-                    print("7. 记录到文件的设置")  # 新增选项
+                    print("7. 记录到文件的设置")  
+
+                    if config.get('match_type') == 'regex':
+                        print("8. 正则匹配内容发送设置")  # 新增选项
 
                     options = (await ainput("请输入要修改的项，多个项用逗号分隔（例如：1,3）: ")).strip()
                     options = [opt.strip() for opt in options.split(',')]
+
                     if '1' in options:
                         match_type = config.get('match_type', 'partial')
                         if match_type != 'regex':
                             new_keyword = (await ainput("请输入新的关键词: ")).strip()
                         else:
                             new_keyword = (await ainput("请输入新的正则表达式模式: ")).strip()
-                        # 删除旧的关键词配置，添加新的
                         KEYWORD_CONFIG[new_keyword] = KEYWORD_CONFIG.pop(keyword_input)
                         keyword_input = new_keyword  # 更新关键词变量
                         print(f"关键词已修改为：{new_keyword}")
@@ -634,16 +934,24 @@ async def handle_commands(client):
                         print("3. 正则表达式匹配")
                         match_option = (await ainput("请输入匹配类型编号 (1/2/3): ")).strip()
                         if match_option == '1':
-                            match_type = 'exact'
+                            new_match_type = 'exact'
                         elif match_option == '2':
-                            match_type = 'partial'
+                            new_match_type = 'partial'
                         elif match_option == '3':
-                            match_type = 'regex'
+                            new_match_type = 'regex'
                         else:
                             print("无效的匹配类型，默认使用关键词匹配")
-                            match_type = 'partial'
-                        KEYWORD_CONFIG[keyword_input]['match_type'] = match_type
-                        print(f"匹配类型已更新为：{match_type}")
+                            new_match_type = 'partial'
+                        KEYWORD_CONFIG[keyword_input]['match_type'] = new_match_type
+                        print(f"匹配类型已更新为：{new_match_type}")
+
+                        # 如果从非regex转为regex，需要清理或新增正则相关配置
+                        # 可以根据需要清理或保留此前的regex_send_*字段
+                        if new_match_type != 'regex':
+                            # 非regex类型则删除regex发送相关配置
+                            KEYWORD_CONFIG[keyword_input].pop('regex_send_target_id', None)
+                            KEYWORD_CONFIG[keyword_input].pop('regex_send_random_offset', None)
+                            KEYWORD_CONFIG[keyword_input].pop('regex_send_delete', None)
 
                     # 修改监听的用户
                     if '6' in options:
@@ -660,16 +968,13 @@ async def handle_commands(client):
                                 user_set = set()
                                 for u in user_list:
                                     if user_option == '1':
-                                        # 用户ID
                                         if u.isdigit():
                                             user_set.add(int(u))
                                         else:
                                             print(f"用户ID应为数字，输入无效：{u}")
                                     elif user_option == '2':
-                                        # 用户名
                                         user_set.add(u.lower())  # 用户名统一转换为小写
                                     elif user_option == '3':
-                                        # 昵称
                                         user_set.add(u)
                             else:
                                 user_set = set()
@@ -680,6 +985,7 @@ async def handle_commands(client):
                         KEYWORD_CONFIG[keyword_input]['users'] = user_set
                         KEYWORD_CONFIG[keyword_input]['user_option'] = user_option
                         print(f"监听的用户已更新为：{user_set if user_set else '所有用户'}")
+
                     if '7' in options:
                         log_to_file = (await ainput("是否将匹配的消息文本写入.txt文件？(yes/no): ")).strip().lower() == 'yes'
                         if log_to_file:
@@ -691,9 +997,29 @@ async def handle_commands(client):
                                 del KEYWORD_CONFIG[keyword_input]['log_file']
                             print("已取消记录消息到文件的功能。")
 
+                    # 如果当前是regex类型，并且用户选择了选项8，则修改正则发送相关配置
+                    if '8' in options and KEYWORD_CONFIG[keyword_input].get('match_type') == 'regex':
+                        regex_send = (await ainput("是否将正则匹配到的内容发送到指定对话？(yes/no): ")).strip().lower() == 'yes'
+                        if regex_send:
+                            regex_send_target_id = int((await ainput("请输入发送匹配结果的目标对话ID: ")).strip())
+                            random_offset_input = (await ainput("请输入随机延时（秒），默认为0: ")).strip()
+                            regex_send_random_offset = int(random_offset_input) if random_offset_input else 0
+                            regex_send_delete = (await ainput("是否在发送后删除该消息？(yes/no): ")).strip().lower() == 'yes'
+                            KEYWORD_CONFIG[keyword_input]['regex_send_target_id'] = regex_send_target_id
+                            KEYWORD_CONFIG[keyword_input]['regex_send_random_offset'] = regex_send_random_offset
+                            KEYWORD_CONFIG[keyword_input]['regex_send_delete'] = regex_send_delete
+                            print(f"正则匹配结果将发送到ID: {regex_send_target_id}, 随机延时: {regex_send_random_offset}秒, 发送后删除: {regex_send_delete}")
+                        else:
+                            # 不发送则删除相关字段
+                            KEYWORD_CONFIG[keyword_input].pop('regex_send_target_id', None)
+                            KEYWORD_CONFIG[keyword_input].pop('regex_send_random_offset', None)
+                            KEYWORD_CONFIG[keyword_input].pop('regex_send_delete', None)
+                            print("已取消正则匹配结果的发送。")
+
                     print(f"关键词 '{keyword_input}' 的新配置：{KEYWORD_CONFIG[keyword_input]}")
                 else:
                     print("该关键词未在列表中")
+
             
             elif command == 'removekeyword':
                 keyword_input = (await ainput("请输入要移除的关键词: ")).strip()
