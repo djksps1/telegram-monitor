@@ -55,6 +55,7 @@
 1. 安装依赖：
 ```bash
    pip install -r requirements.txt
+
 ```
 2. 获取 Telegram API 凭证（`api_id` 和 `api_hash`）并填入代码中。
 3. 配置 `ONEAPI_KEY` 和 `ONEAPI_BASE_URL` 来使用 AI 模型服务。
@@ -63,6 +64,7 @@
 
 1. **运行程序**：
 ```bash
+   python monitor.py
 
 ```
 2. **登录 Telegram**：程序首次运行需要输入 `api_id` 和 `api_hash`，然后输入您的 Telegram 手机号和验证码进行登录。如果启用了两步验证，还需输入密码。
