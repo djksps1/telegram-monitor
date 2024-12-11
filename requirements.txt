@@ -1,4 +1,4 @@
 telethon
-asyncio
 apscheduler
 pytz
+openai
