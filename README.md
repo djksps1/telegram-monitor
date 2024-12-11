@@ -39,7 +39,7 @@
 ## 环境要求
 
 - Python 3.7 及以上
-- 安装依赖包（Telethon、asyncio、pytz、apscheduler等）
+- 安装依赖包（Telethon、opanai、pytz、apscheduler等）
 - 需要 Telegram `api_id` 和 `api_hash`
 - 需要提供 SMTP 邮箱信息（如需邮件通知）
 - 需要 OneAPI 的 `api_key` 和 `base_url` 用于调用 AI 模型（如需图片识别）
