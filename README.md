@@ -49,12 +49,12 @@
 1. 克隆或下载本项目代码：
    ```bash
    git clone https://github.com/DJKS666/tg-monitor.git
-
-```
+   
+   ```
 
 1. 安装依赖：
 ```bash
-
+   pip install -r requirements.txt
 ```
 2. 获取 Telegram API 凭证（`api_id` 和 `api_hash`）并填入代码中。
 3. 配置 `ONEAPI_KEY` 和 `ONEAPI_BASE_URL` 来使用 AI 模型服务。
