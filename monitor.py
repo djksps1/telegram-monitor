@@ -1,4 +1,5 @@
 import sys
+import socks
 from telethon import TelegramClient, events
 from telethon.tl.types import Channel, Chat, MessageMediaDocument
 import asyncio
@@ -438,7 +439,7 @@ async def handle_commands(client):
 
     while True:
         print("\n=== 可用命令 ===")
-        print("1. list - 列出所有对话")
+        print("1. list - 列出所有频道和群组对话")
         print("2. addkeyword - 添加关键词")
         print("3. modifykeyword - 修改关键词")
         print("4. removekeyword - 移除关键词")
@@ -458,16 +459,14 @@ async def handle_commands(client):
         print("18. start - 开始监控")
         print("19. stop - 停止监控")
         print("20. exit - 退出程序")
-        # 新增按钮关键词相关命令
         print("21. addbutton - 添加按钮关键词监控")
         print("22. modifybutton - 修改按钮关键词监控")
         print("23. removebutton - 移除按钮关键词监控")
         print("24. showbuttons - 显示所有按钮关键词监控")
-        # 新增列出bot对话ID命令
-        print("25. listbotchats - 列出与bot的对话chat_id")
-        print("26. addimagelistener - 添加监听图片+按钮的对话ID")
-        print("27. removeimagelistener - 移除监听图片+按钮的对话ID")
-        print("28. showimagelistener - 显示所有监听的对话ID")
+        print("25. listchats - 列出与bot的对话chat_id")
+        print("26. addlistener - 添加监听图片+按钮的对话ID")
+        print("27. removelistener - 移除监听图片+按钮的对话ID")
+        print("28. showlistener - 显示所有监听的对话ID")
 
 
         command = (await ainput("\n请输入命令: ")).strip().lower()
@@ -478,12 +477,12 @@ async def handle_commands(client):
                 async for dialog in client.iter_dialogs():
                     if isinstance(dialog.entity, (Channel, Chat)):
                         print(f"ID: {dialog.id}, 名称: {dialog.name}, 类型: {'频道' if isinstance(dialog.entity, Channel) else '群组'}")
-            elif command == 'addimagelistener':
+            elif command == 'addlistener':
                 chat_id = int((await ainput("请输入要监听的对话ID: ")).strip())
                 IMAGE_BUTTON_MONITOR.add(chat_id)
                 print(f"已添加监听对话ID: {chat_id}")
 
-            elif command == 'removeimagelistener':
+            elif command == 'removelistener':
                 chat_id = int((await ainput("请输入要移除监听的对话ID: ")).strip())
                 if chat_id in IMAGE_BUTTON_MONITOR:
                     IMAGE_BUTTON_MONITOR.remove(chat_id)
@@ -491,12 +490,12 @@ async def handle_commands(client):
                 else:
                     print("该对话ID不在监听列表中")
 
-            elif command == 'showimagelistener':
+            elif command == 'showlistener':
                 print("\n=== 当前监听图片+按钮的对话ID列表 ===")
                 for cid in IMAGE_BUTTON_MONITOR:
                     print(cid)
 
-            elif command == 'listbotchats':
+            elif command == 'listchats':
                 print("\n=== 与Bot的对话 ===")
                 async for dialog in client.iter_dialogs():
                     if dialog.is_user and dialog.entity.bot:
@@ -1361,7 +1360,40 @@ async def main():
     logger.info('启动Telegram监控程序...')
     api_id = int(input('请输入您的 api_id: ').strip())
     api_hash = input('请输入您的 api_hash: ').strip()
-    client = TelegramClient('session_name', api_id, api_hash)
+
+    use_proxy = input("是否配置代理？(yes/no): ").strip().lower() == 'yes'
+    proxy = None
+    if use_proxy:
+        print("\n支持的代理类型：socks5, socks4, http")
+        proxy_type_input = input("请输入代理类型（例如：socks5）: ").strip().lower()
+        proxy_host = input("请输入代理服务器地址（例如：127.0.0.1）: ").strip()
+        proxy_port_str = input("请输入代理服务器端口号（例如：1080）: ").strip()
+        
+        if proxy_host and proxy_port_str.isdigit():
+            proxy_port = int(proxy_port_str)
+            # 根据用户输入的代理类型确定Telethon需要的常量
+            # socks.SOCKS5, socks.SOCKS4, or http is represented by socks.HTTP for Telethon proxies
+            if proxy_type_input == 'socks5':
+                proxy_type = socks.SOCKS5
+            elif proxy_type_input == 'socks4':
+                proxy_type = socks.SOCKS4
+            elif proxy_type_input == 'http':
+                proxy_type = socks.HTTP
+            else:
+                proxy_type = None
+                print("不支持的代理类型，将不使用代理连接。")
+            
+            if proxy_type:
+                proxy_user = input("请输入代理用户名（如果不需要认证可回车跳过）: ").strip()
+                proxy_pass = input("请输入代理密码（如果不需要认证可回车跳过）: ").strip()
+                if proxy_user and proxy_pass:
+                    proxy = (proxy_type, proxy_host, proxy_port, True, proxy_user, proxy_pass)
+                else:
+                    proxy = (proxy_type, proxy_host, proxy_port)
+        else:
+            print("代理地址或端口无效，将使用本地网络连接。")
+
+    client = TelegramClient('session_name', api_id, api_hash, proxy=proxy)
 
     try:
         await client.connect()
@@ -1389,7 +1421,6 @@ async def main():
         await client.disconnect()
         scheduler.shutdown()
         logger.info('程序已退出')
-
 if __name__ == '__main__':
     monitor_active = False
     client = None
