@@ -1,5 +1,7 @@
 # Telegram Message Monitor Program
 
+[中文版](./README.md)
+
 ## Project Overview
 This project is a Python-based Telegram message monitoring program that interacts with the Telegram API using the `Telethon` library.
 After updates, the program supports the following main features:
