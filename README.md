@@ -50,7 +50,7 @@
 1. 克隆或下载本项目代码：
 ```bash
    git clone https://github.com/djksps1/tg-monitor.git
-   
+ 
 ```
 
 1. 安装依赖：
@@ -58,8 +58,8 @@
    pip install -r requirements.txt
 
 ```
-2. 获取 Telegram API 凭证（`api_id` 和 `api_hash`）并填入代码中。
-3. 配置 `ONEAPI_KEY` 和 `ONEAPI_BASE_URL` 来使用 AI 模型服务。
+2. 获取 Telegram API 凭证（`api_id` 和 `api_hash`）。
+3. 配置 `ONE/NEW API_KEY` 和 `ONE/NEW API_BASE_URL` 来使用 AI 模型服务。
 4. 配置 SMTP 邮箱信息（如需邮件通知）。
 ## 使用说明
 
@@ -99,7 +99,7 @@
 - 请遵守 Telegram 使用条款，避免滥用导致账号受限。
 - 妥善保管您的 `api_id`、`api_hash` 和登录会话文件，防止账号信息泄露。
 - 若需要邮件通知，请正确配置 SMTP 信息和邮箱授权码。
-- 配置 OneAPI 的 `api_key` 与 `base_url` 用于模型调用。
+- 配置 One/NEW API 的 `api_key` 与 `base_url` 用于模型调用。
 ## 常见问题
 
 1. **无法连接 Telegram**：检查网络与代理配置，确保能访问 Telegram。
