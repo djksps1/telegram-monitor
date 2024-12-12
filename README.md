@@ -48,10 +48,10 @@
 ## 安装指南
 
 1. 克隆或下载本项目代码：
-   ```bash
-   git clone https://github.com/DJKS666/tg-monitor.git
+```bash
+   git clone https://github.com/djksps1/tg-monitor.git
    
-   ```
+```
 
 1. 安装依赖：
 ```bash
