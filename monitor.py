@@ -20,9 +20,9 @@ import shutil
 import base64
 from openai import OpenAI
 
-# 配置OneAPI
-ONEAPI_KEY = "你的 OneAPI 令牌"  # 替换为实际的 OneAPI 令牌
-ONEAPI_BASE_URL = "http://你的 OneAPI 地址/v1"  # OneAPI 的服务地址
+# 配置One/New API
+ONEAPI_KEY = "你的 API 令牌"  # 替换为实际的 API 令牌
+ONEAPI_BASE_URL = "http://你的 API 地址/v1"  # API 的服务地址
 
 client_ai = OpenAI(
     api_key=ONEAPI_KEY,
