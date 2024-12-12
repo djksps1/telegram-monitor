@@ -1,5 +1,7 @@
 # Telegram 消息监控程序
 
+[English](./README_EN.md)
+
 ## 项目简介 
 本项目是一个基于 Python 的 Telegram 消息监控程序，利用 `Telethon` 库与 Telegram API 进行交互。  
 程序在更新后，支持以下主要特性：  
