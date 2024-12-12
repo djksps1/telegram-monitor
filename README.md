@@ -43,7 +43,7 @@
 - 安装依赖包（Telethon、opanai、pytz、apscheduler等）
 - 需要 Telegram `api_id` 和 `api_hash`
 - 需要提供 SMTP 邮箱信息（如需邮件通知）
-- 需要 OneAPI 的 `api_key` 和 `base_url` 用于调用 AI 模型（如需图片识别）
+- 需要 One/New API 的 `api_key` 和 `base_url` 用于调用 AI 模型（如需图片识别）
 
 ## 安装指南
 
