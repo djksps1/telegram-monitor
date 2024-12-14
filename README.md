@@ -51,7 +51,7 @@
 
 1. 克隆或下载本项目代码：
 ```bash
-   git clone https://github.com/djksps1/tg-monitor.git
+   git clone https://github.com/djksps1/telegram-monitor.git
  
 ```
 
