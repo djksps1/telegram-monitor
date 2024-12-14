@@ -42,7 +42,7 @@ After updates, the program supports the following main features:
 ## Installation Guide
 1. Clone or download project code:
 ```bash
-git clone https://github.com/djksps1/tg-monitor.git
+git clone https://github.com/djksps1/telegram-monitor.git
 ```
 2. Install dependencies:
 ```bash
