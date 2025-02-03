@@ -99,6 +99,7 @@ In the latest update, the program introduces several new features and improvemen
 ```
  
 1. Install the dependencies:
+   ```bash
 pip install -r requirements.txt
 ```
  
