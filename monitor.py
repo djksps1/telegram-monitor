@@ -33,6 +33,7 @@ SENDER_EMAIL = "您的邮箱@example.com"  # 发件人邮箱
 EMAIL_PASSWORD = "您的邮箱授权码"      # 邮箱授权码或密码
 RECIPIENT_EMAIL = "收件人邮箱@example.com"  # 收件人邮箱
 
+# 全局变量：存储所有账号，账号彼此独立，每个账号存放独立的监控配置；另外还有一个当前工作账号 current_account
 ACCOUNTS = {}
 # 格式：{ account_id: { "client": TelegramClient, "own_user_id": ..., "phone": ..., "config": { ... } } }
 # 其中 config 包含：
@@ -44,7 +45,7 @@ ACCOUNTS = {}
 #    "image_button_monitor": [],      
 #    "scheduled_messages": []
 # }
-BLOCKED_BOTS = set() 
+BLOCKED_BOTS = set()  
 
 current_account = None  
 
@@ -92,7 +93,6 @@ def send_email(message_text):
         except:
             pass
 
-# 新增 match_user 函数
 def match_user(sender, user_set, user_option):
     if not user_set:
         return True
@@ -112,7 +112,6 @@ def match_user(sender, user_set, user_option):
     else:
         return True
 
-# 账号添加时初始化配置
 def default_config():
     return {
         "keyword_config": {},
@@ -122,7 +121,7 @@ def default_config():
         "image_button_monitor": [],
         "scheduled_messages": []
     }
-    
+
 async def add_account():
     global ACCOUNTS, current_account
     print("=== 添加账号 ===")
@@ -203,8 +202,9 @@ async def list_accounts():
         print("当前没有登录的账号。")
     else:
         print("=== 已登录账号列表 ===")
-        for account_id, info in ACCOUNTS.items():
-            print(f"账号标识: {account_id}, 用户ID: {info['own_user_id']}, 电话: {info['phone']}")
+        for idx, (account_id, info) in enumerate(ACCOUNTS.items(), start=1):
+            print(f"{idx}. 电话: {info['phone']}, 用户ID: {info['own_user_id']}")
+
 
 async def export_all_configs():
     global ACCOUNTS
@@ -213,7 +213,6 @@ async def export_all_configs():
     if os.path.isdir(filepath):
         filepath = os.path.join(filepath, "all_configs.json")
     all_configs = {}
-    # 遍历所有账号，导出每个账号的 phone 和 config
     for account_id, info in ACCOUNTS.items():
         all_configs[account_id] = {
             "phone": info["phone"],
@@ -226,6 +225,17 @@ async def export_all_configs():
     except Exception as e:
         logger.error(f"导出配置时发生错误：{repr(e)}")
         print(f"导出配置时发生错误：{repr(e)}")
+
+def ensure_keyword_config_defaults(keyword_cfg):
+    if 'reply_enabled' not in keyword_cfg:
+        keyword_cfg['reply_enabled'] = False
+    if 'reply_texts' not in keyword_cfg:
+        keyword_cfg['reply_texts'] = []
+    if 'reply_delay_min' not in keyword_cfg:
+        keyword_cfg['reply_delay_min'] = 0
+    if 'reply_delay_max' not in keyword_cfg:
+        keyword_cfg['reply_delay_max'] = 0
+    return keyword_cfg
 
 async def import_all_configs():
     global ACCOUNTS
@@ -242,6 +252,10 @@ async def import_all_configs():
         for account_id in selected_ids:
             if account_id in all_configs:
                 if account_id in ACCOUNTS:
+                    keyword_cfg = all_configs[account_id]["config"].get("keyword_config", {})
+                    for key, cfg in keyword_cfg.items():
+                        keyword_cfg[key] = ensure_keyword_config_defaults(cfg)
+                    all_configs[account_id]["config"]["keyword_config"] = keyword_cfg
                     ACCOUNTS[account_id]["config"] = all_configs[account_id]["config"]
                     imported += 1
                 else:
@@ -253,7 +267,6 @@ async def import_all_configs():
         logger.error(f"导入配置时发生错误：{repr(e)}")
         print(f"导入配置时发生错误：{repr(e)}")
 
-# 修改后的消息处理函数，所有监控配置均从对应账号的 config 中取
 async def message_handler(event, account_id):
     if not monitor_active:
         return
@@ -265,7 +278,6 @@ async def message_handler(event, account_id):
 
     own_user_id = account["own_user_id"]
 
-    # 从当前账号的配置中获取各监控配置
     keyword_config = account["config"]["keyword_config"]
     file_extension_config = account["config"]["file_extension_config"]
     all_messages_config = account["config"]["all_messages_config"]
@@ -275,13 +287,11 @@ async def message_handler(event, account_id):
     chat_id = event.chat_id
     message_id = event.message.id
 
-    # 检查是否已处理过该消息
     if (chat_id, message_id) in processed_messages:
         return
     processed_messages.add((chat_id, message_id))
 
     try:
-        # 增加对消息文本的定义，确保后续使用时不会报错
         message_text = event.raw_text or ''
         message_text_lower = message_text.lower().strip()
 
@@ -308,72 +318,122 @@ async def message_handler(event, account_id):
                         logger.info(f"已转发对话 {chat_id} 的消息到ID: {target_id}")
         else:
             handled = False
+            keyword_config = account["config"]["keyword_config"]
             for keyword, config in keyword_config.items():
-                if chat_id in config.get('chats', []):
-                    user_set = set(config.get('users', []))
-                    user_option = config.get('user_option')
-                    if not match_user(sender, user_set, user_option):
-                        continue
-                    match_type = config.get('match_type', 'partial')
-                    if match_type == 'exact':
-                        if message_text_lower == keyword:
-                            logger.info(f"检测到完全匹配关键词 '{keyword}' 的消息: {message_text}")
-                            if config.get('email_notify'):
-                                send_email(f"检测到完全匹配关键词 '{keyword}' 的消息: {message_text}")
-                            if config.get('auto_forward'):
-                                await auto_forward_message(event, keyword, account_id)
-                            log_file = config.get('log_file')
-                            if log_file:
-                                try:
-                                    with open(log_file, 'a', encoding='utf-8') as f:
-                                        f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 对话 {chat_id} 完全匹配 '{keyword}': {message_text}\n")
-                                    logger.info(f"已写入消息到文件 {log_file}")
-                                except Exception as e:
-                                    logger.error(f"写入文件 {log_file} 时出错：{e}")
-                            handled = True
-                            break
-                    elif match_type == 'partial':
-                        if keyword in message_text_lower:
-                            logger.info(f"检测到关键词 '{keyword}' 的消息: {message_text}")
-                            if config.get('email_notify'):
-                                send_email(f"检测到关键词 '{keyword}' 的消息: {message_text}")
-                            if config.get('auto_forward'):
-                                await auto_forward_message(event, keyword, account_id)
-                            log_file = config.get('log_file')
-                            if log_file:
-                                try:
-                                    with open(log_file, 'a', encoding='utf-8') as f:
-                                        f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 对话 {chat_id} 关键词 '{keyword}': {message_text}\n")
-                                    logger.info(f"已写入消息到文件 {log_file}")
-                                except Exception as e:
-                                    logger.error(f"写入文件 {log_file} 时出错：{e}")
-                            handled = True
-                            break
-                    elif match_type == 'regex':
-                        pattern = re.compile(rf'{keyword}')
-                        match_obj = pattern.search(message_text)
-                        if match_obj:
-                            logger.info(f"检测到正则匹配 '{keyword}' 的消息: {message_text}")
-                            if config.get('email_notify'):
-                                send_email(f"检测到正则匹配 '{keyword}' 的消息: {message_text}")
-                            if config.get('auto_forward'):
-                                await auto_forward_message(event, keyword, account_id)
-                            log_file = config.get('log_file')
-                            if log_file:
-                                try:
-                                    with open(log_file, 'a', encoding='utf-8') as f:
-                                        f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 对话 {chat_id} 正则匹配 '{keyword}': {message_text}\n")
-                                    logger.info(f"已写入消息到文件 {log_file}")
-                                except Exception as e:
-                                    logger.error(f"写入文件 {log_file} 时出错：{e}")
-                            matched_text = match_obj.group(0)
-                            if 'regex_send_target_id' in config:
-                                target_id = config['regex_send_target_id']
-                                random_offset = config.get('regex_send_random_offset', 0)
-                                delete_after_sending = config.get('regex_send_delete', False)
-                                await send_regex_matched_message(target_id, matched_text, random_offset, delete_after_sending, account_id)
-                            handled = True
-                            break
+                if chat_id not in config.get('chats', []):
+                    continue
+
+                user_set = set(config.get('users', []))
+                user_option = config.get('user_option')
+                if not match_user(sender, user_set, user_option):
+                    continue
+
+                match_type = config.get('match_type', 'partial')
+
+                if match_type == 'exact':
+                    if message_text_lower == keyword:
+                        logger.info(f"检测到完全匹配关键词 '{keyword}' 的消息: {message_text}")
+                        if config.get('email_notify'):
+                            send_email(f"检测到完全匹配关键词 '{keyword}' 的消息: {message_text}")
+                        if config.get('auto_forward'):
+                            await auto_forward_message(event, keyword, account_id)
+                        log_file = config.get('log_file')
+                        if log_file:
+                            try:
+                                with open(log_file, 'a', encoding='utf-8') as f:
+                                    f.write(
+                                        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 对话 {chat_id} 完全匹配 '{keyword}': {message_text}\n")
+                                logger.info(f"已写入消息到文件 {log_file}")
+                            except Exception as e:
+                                logger.error(f"写入文件 {log_file} 时出错：{e}")
+                        if config.get('reply_enabled'):
+                            min_delay = config.get('reply_delay_min', 0)
+                            max_delay = config.get('reply_delay_max', 0)
+                            delay = random.uniform(min_delay, max_delay) if max_delay > min_delay else min_delay
+                            if delay > 0:
+                                logger.info(f"等待 {delay:.2f} 秒后回复消息")
+                                await asyncio.sleep(delay)
+                            reply_texts = config.get('reply_texts', [])
+                            if reply_texts:
+                                reply_msg = random.choice(reply_texts)
+                                await event.message.reply(reply_msg)
+                                logger.info(f"已回复消息，回复内容： {reply_msg}")
+                        # ====================================
+                        handled = True
+                        break
+
+                elif match_type == 'partial':
+                    if keyword in message_text_lower:
+                        logger.info(f"检测到关键词 '{keyword}' 的消息: {message_text}")
+                        if config.get('email_notify'):
+                            send_email(f"检测到关键词 '{keyword}' 的消息: {message_text}")
+                        if config.get('auto_forward'):
+                            await auto_forward_message(event, keyword, account_id)
+                        log_file = config.get('log_file')
+                        if log_file:
+                            try:
+                                with open(log_file, 'a', encoding='utf-8') as f:
+                                    f.write(
+                                        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 对话 {chat_id} 关键词 '{keyword}': {message_text}\n")
+                                logger.info(f"已写入消息到文件 {log_file}")
+                            except Exception as e:
+                                logger.error(f"写入文件 {log_file} 时出错：{e}")
+                        if config.get('reply_enabled'):
+                            min_delay = config.get('reply_delay_min', 0)
+                            max_delay = config.get('reply_delay_max', 0)
+                            delay = random.uniform(min_delay, max_delay) if max_delay > min_delay else min_delay
+                            if delay > 0:
+                                logger.info(f"等待 {delay:.2f} 秒后回复消息")
+                                await asyncio.sleep(delay)
+                            reply_texts = config.get('reply_texts', [])
+                            if reply_texts:
+                                reply_msg = random.choice(reply_texts)
+                                await event.message.reply(reply_msg)
+                                logger.info(f"已回复消息，回复内容： {reply_msg}")
+                        # ====================================
+                        handled = True
+                        break
+
+                elif match_type == 'regex':
+                    pattern = re.compile(rf'{keyword}')
+                    match_obj = pattern.search(message_text)
+                    if match_obj:
+                        logger.info(f"检测到正则匹配 '{keyword}' 的消息: {message_text}")
+                        if config.get('email_notify'):
+                            send_email(f"检测到正则匹配 '{keyword}' 的消息: {message_text}")
+                        if config.get('auto_forward'):
+                            await auto_forward_message(event, keyword, account_id)
+                        log_file = config.get('log_file')
+                        if log_file:
+                            try:
+                                with open(log_file, 'a', encoding='utf-8') as f:
+                                    f.write(
+                                        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 对话 {chat_id} 正则匹配 '{keyword}': {message_text}\n")
+                                logger.info(f"已写入消息到文件 {log_file}")
+                            except Exception as e:
+                                logger.error(f"写入文件 {log_file} 时出错：{e}")
+                        matched_text = match_obj.group(0)
+                        if 'regex_send_target_id' in config:
+                            target_id = config['regex_send_target_id']
+                            random_offset = config.get('regex_send_random_offset', 0)
+                            delete_after_sending = config.get('regex_send_delete', False)
+                            await send_regex_matched_message(target_id, matched_text, random_offset,
+                                                             delete_after_sending, account_id)
+                        if config.get('reply_enabled'):
+                            min_delay = config.get('reply_delay_min', 0)
+                            max_delay = config.get('reply_delay_max', 0)
+                            delay = random.uniform(min_delay, max_delay) if max_delay > min_delay else min_delay
+                            if delay > 0:
+                                logger.info(f"等待 {delay:.2f} 秒后回复消息")
+                                await asyncio.sleep(delay)
+                            reply_texts = config.get('reply_texts', [])
+                            if reply_texts:
+                                reply_msg = random.choice(reply_texts)
+                                await event.message.reply(reply_msg)
+                                logger.info(f"已回复消息，回复内容： {reply_msg}")
+                        # ====================================
+                        handled = True
+                        break
             if not handled:
                 if event.message.media and isinstance(event.message.media, MessageMediaDocument):
                     file_attr = event.message.media.document.attributes
@@ -568,8 +628,17 @@ async def send_scheduled_message(target_id, message, random_offset=0, delete_aft
     except Exception as e:
         error_message = repr(e)
         logger.error(f"发送定时消息时发生错误：{error_message}")
-
+        
 async def handle_commands():
+    """
+    配置项包括：
+      - keyword_config
+      - file_extension_config
+      - all_messages_config
+      - button_keyword_config
+      - image_button_monitor
+      - scheduled_messages
+    """
     global monitor_active, ACCOUNTS, current_account
     short_prompt = "请输入命令 (输入 help 查看详细命令): "
     full_commands = """
@@ -624,12 +693,24 @@ exit               - 退出程序
             elif command == 'listaccount':
                 await list_accounts()
             elif command == 'switchaccount':
-                new_account = (await ainput("请输入要切换到的账号标识（例如手机号）: ")).strip()
-                if new_account in ACCOUNTS:
-                    current_account = new_account
-                    print(f"当前工作账号已切换为：{current_account}")
+                if not ACCOUNTS:
+                    print("当前没有登录的账号")
+                    continue
+                accounts_list = list(ACCOUNTS.keys())
+                print("=== 已登录账号列表 ===")
+                for idx, account_id in enumerate(accounts_list, start=1):
+                    info = ACCOUNTS[account_id]
+                    print(f"{idx}. 电话: {info['phone']}, 用户ID: {info['own_user_id']}")
+                selection = (await ainput("请输入要切换到的账号序号: ")).strip()
+                if selection.isdigit():
+                    index = int(selection) - 1
+                    if 0 <= index < len(accounts_list):
+                        current_account = accounts_list[index]
+                        print(f"当前工作账号已切换为：{current_account}")
+                    else:
+                        print("无效的序号")
                 else:
-                    print("未找到该账号")
+                    print("请输入数字序号")
             elif command == 'exportconfig':
                 await export_all_configs()
             elif command == 'importconfig':
@@ -660,7 +741,6 @@ exit               - 退出程序
                 async for dialog in ACCOUNTS[current_account]["client"].iter_dialogs():
                     if isinstance(dialog.entity, (Channel, Chat)):
                         print(f"ID: {dialog.id}, 名称: {dialog.name}, 类型: {'频道' if isinstance(dialog.entity, Channel) else '群组'}")
-            # 关键词配置
             elif command == 'addkeyword':
                 if current_account is None:
                     print("请先切换或添加账号")
@@ -715,16 +795,24 @@ exit               - 退出程序
                     target_ids = [int(x.strip()) for x in target_ids_input.split(',')]
                 else:
                     target_ids = []
-                regex_send_target_id = None
-                regex_send_random_offset = 0
-                regex_send_delete = False
-                if match_type == 'regex':
-                    regex_send = (await ainput("是否发送正则匹配结果到指定对话？(yes/no): ")).strip().lower() == 'yes'
-                    if regex_send:
-                        regex_send_target_id = int((await ainput("请输入目标对话ID: ")).strip())
-                        random_offset_input = (await ainput("请输入随机延时（秒）： ")).strip()
-                        regex_send_random_offset = int(random_offset_input) if random_offset_input else 0
-                        regex_send_delete = (await ainput("发送后是否删除消息？(yes/no): ")).strip().lower() == 'yes'
+
+                reply_enabled = (await ainput("是否启用回复？(yes/no): ")).strip().lower() == 'yes'
+                if reply_enabled:
+                    reply_texts_input = (await ainput("请输入回复词组，多个词组用逗号分隔: ")).strip()
+                    reply_texts = [s.strip() for s in reply_texts_input.split(',')]
+                    reply_delay_input = (await ainput("请输入回复延时范围（格式: min,max，单位秒）： ")).strip()
+                    try:
+                        reply_delay_min, reply_delay_max = map(float, reply_delay_input.split(','))
+                    except Exception as e:
+                        print("回复延时范围输入格式有误，默认设为0")
+                        reply_delay_min = 0
+                        reply_delay_max = 0
+                else:
+                    reply_texts = []
+                    reply_delay_min = 0
+                    reply_delay_max = 0
+                # ================================
+
                 for keyword in keywords:
                     cfg[keyword] = {
                         'chats': chat_ids,
@@ -734,88 +822,126 @@ exit               - 退出程序
                         'users': user_set,
                         'user_option': user_option,
                         'forward_targets': target_ids,
-                        'log_file': log_file
+                        'log_file': log_file,
+                        'reply_enabled': reply_enabled,
+                        'reply_texts': reply_texts,
+                        'reply_delay_min': reply_delay_min,
+                        'reply_delay_max': reply_delay_max
                     }
-                    if match_type == 'regex' and regex_send_target_id is not None:
-                        cfg[keyword]['regex_send_target_id'] = regex_send_target_id
-                        cfg[keyword]['regex_send_random_offset'] = regex_send_random_offset
-                        cfg[keyword]['regex_send_delete'] = regex_send_delete
-                        print(f"正则匹配结果将发送到ID: {regex_send_target_id}, 延时: {regex_send_random_offset}秒, 删除后: {'是' if regex_send_delete else '否'}")
+                    if match_type == 'regex':
+                        regex_send = (await ainput(
+                            "是否发送正则匹配结果到指定对话？(yes/no): ")).strip().lower() == 'yes'
+                        if regex_send:
+                            cfg[keyword]['regex_send_target_id'] = int((await ainput("请输入目标对话ID: ")).strip())
+                            random_offset_input = (await ainput("请输入随机延时（秒）： ")).strip()
+                            cfg[keyword]['regex_send_random_offset'] = int(
+                                random_offset_input) if random_offset_input else 0
+                            cfg[keyword]['regex_send_delete'] = (await ainput(
+                                "发送后是否删除消息？(yes/no): ")).strip().lower() == 'yes'
+                            print(
+                                f"正则匹配结果将发送到ID: {cfg[keyword]['regex_send_target_id']}, 延时: {cfg[keyword]['regex_send_random_offset']}秒, 删除后: {'是' if cfg[keyword]['regex_send_delete'] else '否'}")
                     print(f"已添加关键词 '{keyword}' 配置： {cfg[keyword]}")
             elif command == 'modifykeyword':
-                if current_account is None:
-                    print("请先切换或添加账号")
-                    continue
-                cfg = ACCOUNTS[current_account]["config"]["keyword_config"]
-                keyword_input = (await ainput("请输入要修改的关键词: ")).strip()
-                if keyword_input in cfg:
-                    config = cfg[keyword_input]
-                    print(f"当前配置：{config}")
-                    print("请输入要修改的项（逗号分隔）：")
-                    print("1. 关键词  2. 监听对话ID  3. 自动转发  4. 邮件通知  5. 匹配类型  6. 用户过滤  7. 文件记录")
-                    options = (await ainput("请输入修改项: ")).strip().split(',')
-                    options = [x.strip() for x in options]
-                    if '1' in options:
-                        new_keyword = (await ainput("请输入新的关键词: ")).strip()
-                        cfg[new_keyword] = cfg.pop(keyword_input)
-                        keyword_input = new_keyword
-                        print(f"关键词修改为： {new_keyword}")
-                    if '2' in options:
-                        chat_ids_input = (await ainput("请输入新的监听对话ID（逗号分隔）： ")).strip()
-                        cfg[keyword_input]['chats'] = [int(x.strip()) for x in chat_ids_input.split(',')]
-                        print("监听对话ID已更新")
-                    if '3' in options:
-                        auto_forward = (await ainput("是否启用自动转发？(yes/no): ")).strip().lower() == 'yes'
-                        cfg[keyword_input]['auto_forward'] = auto_forward
-                        if auto_forward:
-                            target_ids_input = (await ainput("请输入自动转发目标对话ID（逗号分隔）： ")).strip()
-                            cfg[keyword_input]['forward_targets'] = [int(x.strip()) for x in target_ids_input.split(',')]
-                        else:
-                            cfg[keyword_input]['forward_targets'] = []
-                    if '4' in options:
-                        email_notify = (await ainput("是否启用邮件通知？(yes/no): ")).strip().lower() == 'yes'
-                        cfg[keyword_input]['email_notify'] = email_notify
-                    if '5' in options:
-                        print("请选择匹配类型： 1. 完全匹配  2. 关键词匹配  3. 正则匹配")
-                        match_option = (await ainput("请输入匹配类型编号: ")).strip()
-                        if match_option == '1':
-                            cfg[keyword_input]['match_type'] = 'exact'
-                        elif match_option == '2':
-                            cfg[keyword_input]['match_type'] = 'partial'
-                        elif match_option == '3':
-                            cfg[keyword_input]['match_type'] = 'regex'
-                        else:
-                            print("输入无效，匹配类型保持不变")
-                    if '6' in options:
-                        print("请选择用户类型： 1. 用户ID  2. 用户名  3. 昵称")
-                        user_option = (await ainput("请输入用户类型编号: ")).strip()
-                        users_input = (await ainput("请输入对应用户标识（逗号分隔）： ")).strip()
-                        if users_input:
-                            cfg[keyword_input]['users'] = [int(x.strip()) if user_option=='1' and x.strip().isdigit() else x.strip() for x in users_input.split(',')]
-                        else:
-                            cfg[keyword_input]['users'] = []
-                        cfg[keyword_input]['user_option'] = user_option
-                    if '7' in options:
-                        log_to_file = (await ainput("是否记录匹配消息到文件？(yes/no): ")).strip().lower() == 'yes'
-                        if log_to_file:
-                            log_file = (await ainput("请输入文件名称： ")).strip()
-                            cfg[keyword_input]['log_file'] = log_file
-                        else:
-                            cfg[keyword_input].pop('log_file', None)
-                    if '8' in options and cfg[keyword_input].get('match_type') == 'regex':
-                        regex_send = (await ainput("是否发送正则匹配结果到指定对话？(yes/no): ")).strip().lower() == 'yes'
-                        if regex_send:
-                            cfg[keyword_input]['regex_send_target_id'] = int((await ainput("请输入目标对话ID: ")).strip())
-                            r = (await ainput("请输入随机延时（秒）： ")).strip()
-                            cfg[keyword_input]['regex_send_random_offset'] = int(r) if r else 0
-                            cfg[keyword_input]['regex_send_delete'] = (await ainput("发送后是否删除？(yes/no): ")).strip().lower() == 'yes'
-                        else:
-                            cfg[keyword_input].pop('regex_send_target_id', None)
-                            cfg[keyword_input].pop('regex_send_random_offset', None)
-                            cfg[keyword_input].pop('regex_send_delete', None)
-                    print(f"关键词 '{keyword_input}' 的新配置： {cfg[keyword_input]}")
-                else:
-                    print("未找到该关键词配置")
+                    if current_account is None:
+                        print("请先切换或添加账号")
+                        continue
+                    cfg = ACCOUNTS[current_account]["config"]["keyword_config"]
+                    keyword_input = (await ainput("请输入要修改的关键词: ")).strip()
+                    if keyword_input in cfg:
+                        config = cfg[keyword_input]
+                        print(f"当前配置：{config}")
+                        print("请输入要修改的项（逗号分隔）：")
+                        print(
+                            "1. 关键词  2. 监听对话ID  3. 自动转发  4. 邮件通知  5. 匹配类型  6. 用户过滤  7. 文件记录  8. 回复功能")
+                        options = (await ainput("请输入修改项: ")).strip().split(',')
+                        options = [x.strip() for x in options]
+                        if '1' in options:
+                            new_keyword = (await ainput("请输入新的关键词: ")).strip()
+                            cfg[new_keyword] = cfg.pop(keyword_input)
+                            keyword_input = new_keyword
+                            print(f"关键词修改为： {new_keyword}")
+                        if '2' in options:
+                            chat_ids_input = (await ainput("请输入新的监听对话ID（逗号分隔）： ")).strip()
+                            cfg[keyword_input]['chats'] = [int(x.strip()) for x in chat_ids_input.split(',')]
+                            print("监听对话ID已更新")
+                        if '3' in options:
+                            auto_forward = (await ainput("是否启用自动转发？(yes/no): ")).strip().lower() == 'yes'
+                            cfg[keyword_input]['auto_forward'] = auto_forward
+                            if auto_forward:
+                                target_ids_input = (await ainput("请输入自动转发目标对话ID（多个逗号分隔）： ")).strip()
+                                cfg[keyword_input]['forward_targets'] = [int(x.strip()) for x in
+                                                                         target_ids_input.split(',')]
+                            else:
+                                cfg[keyword_input]['forward_targets'] = []
+                        if '4' in options:
+                            email_notify = (await ainput("是否启用邮件通知？(yes/no): ")).strip().lower() == 'yes'
+                            cfg[keyword_input]['email_notify'] = email_notify
+                        if '5' in options:
+                            print("请选择匹配类型： 1. 完全匹配  2. 关键词匹配  3. 正则匹配")
+                            match_option = (await ainput("请输入匹配类型编号: ")).strip()
+                            if match_option == '1':
+                                cfg[keyword_input]['match_type'] = 'exact'
+                            elif match_option == '2':
+                                cfg[keyword_input]['match_type'] = 'partial'
+                            elif match_option == '3':
+                                cfg[keyword_input]['match_type'] = 'regex'
+                            else:
+                                print("输入无效，匹配类型保持不变")
+                        if '6' in options:
+                            print("请选择用户类型： 1. 用户ID  2. 用户名  3. 昵称")
+                            user_option = (await ainput("请输入用户类型编号: ")).strip()
+                            users_input = (await ainput("请输入对应用户标识（逗号分隔）： ")).strip()
+                            if users_input:
+                                cfg[keyword_input]['users'] = [
+                                    int(x.strip()) if user_option == '1' and x.strip().isdigit() else x.strip() for x in
+                                    users_input.split(',')]
+                            else:
+                                cfg[keyword_input]['users'] = []
+                            cfg[keyword_input]['user_option'] = user_option
+                        if '7' in options:
+                            log_to_file = (await ainput("是否记录匹配消息到文件？(yes/no): ")).strip().lower() == 'yes'
+                            if log_to_file:
+                                log_file = (await ainput("请输入文件名称： ")).strip()
+                                cfg[keyword_input]['log_file'] = log_file
+                            else:
+                                cfg[keyword_input].pop('log_file', None)
+                        if '8' in options:
+                            reply_enabled = (await ainput("是否启用回复？(yes/no): ")).strip().lower() == 'yes'
+                            cfg[keyword_input]['reply_enabled'] = reply_enabled
+                            if reply_enabled:
+                                reply_texts_input = (await ainput("请输入回复词组，多个词组用逗号分隔: ")).strip()
+                                reply_texts = [s.strip() for s in reply_texts_input.split(',')]
+                                cfg[keyword_input]['reply_texts'] = reply_texts
+                                reply_delay_input = (await ainput("请输入回复延时范围（格式: min,max，单位秒）： ")).strip()
+                                try:
+                                    reply_delay_min, reply_delay_max = map(float, reply_delay_input.split(','))
+                                except Exception as e:
+                                    print("回复延时范围输入格式有误，默认设为0")
+                                    reply_delay_min = 0
+                                    reply_delay_max = 0
+                                cfg[keyword_input]['reply_delay_min'] = reply_delay_min
+                                cfg[keyword_input]['reply_delay_max'] = reply_delay_max
+                            else:
+                                cfg[keyword_input]['reply_texts'] = []
+                                cfg[keyword_input]['reply_delay_min'] = 0
+                                cfg[keyword_input]['reply_delay_max'] = 0
+                        if cfg[keyword_input].get('match_type') == 'regex':
+                            regex_send = (await ainput(
+                                "是否发送正则匹配结果到指定对话？(yes/no): ")).strip().lower() == 'yes'
+                            if regex_send:
+                                cfg[keyword_input]['regex_send_target_id'] = int(
+                                    (await ainput("请输入目标对话ID: ")).strip())
+                                r = (await ainput("请输入随机延时（秒）： ")).strip()
+                                cfg[keyword_input]['regex_send_random_offset'] = int(r) if r else 0
+                                cfg[keyword_input]['regex_send_delete'] = (await ainput(
+                                    "发送后是否删除？(yes/no): ")).strip().lower() == 'yes'
+                            else:
+                                cfg[keyword_input].pop('regex_send_target_id', None)
+                                cfg[keyword_input].pop('regex_send_random_offset', None)
+                                cfg[keyword_input].pop('regex_send_delete', None)
+                        print(f"关键词 '{keyword_input}' 的新配置： {cfg[keyword_input]}")
+                    else:
+                        print("未找到该关键词配置")
             elif command == 'removekeyword':
                 if current_account is None:
                     print("请先切换或添加账号")
@@ -1148,10 +1274,12 @@ exit               - 退出程序
                             sched['random_offset'] = int(r) if r else 0
                         if '5' in options:
                             sched['delete_after_sending'] = (await ainput("是否在发送后删除？(yes/no): ")).strip().lower() == 'yes'
+                        # 使用调度器方法删除原有任务
                         try:
                             scheduler.remove_job(job_id)
                         except Exception as e:
                             logger.error(f"删除定时任务时出错: {repr(e)}")
+                        # 重新添加任务，使用相同的 job_id 以便后续操作时保持一致
                         new_job = scheduler.add_job(
                             send_scheduled_message,
                             CronTrigger.from_crontab(sched['cron'], timezone=pytz.timezone('Asia/Shanghai')),
@@ -1170,7 +1298,9 @@ exit               - 退出程序
                     continue
                 job_id = (await ainput("请输入要删除的定时消息的Job ID: ")).strip()
                 try:
+                    # 直接通过调度器删除定时任务
                     scheduler.remove_job(job_id)
+                    # 同时在当前账号配置中移除该定时任务的记录
                     sched_list = ACCOUNTS[current_account]["config"]["scheduled_messages"]
                     ACCOUNTS[current_account]["config"]["scheduled_messages"] = [
                         s for s in sched_list if s['job_id'] != job_id
