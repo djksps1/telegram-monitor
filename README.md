@@ -93,9 +93,9 @@
    git clone https://github.com/djksps1/telegram-monitor.git
 ```
 
-
 1. 安装依赖：
-```bash
+
+   ```bash
 pip install -r requirements.txt
 ```
  
