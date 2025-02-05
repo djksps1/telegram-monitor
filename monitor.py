@@ -243,11 +243,25 @@ async def import_all_configs():
     try:
         with open(filepath, "r", encoding="utf-8") as f:
             all_configs = json.load(f)
+        account_keys = list(all_configs.keys())
+        account_keys.sort()  
         print("配置文件中包含以下账号：")
-        for account_id in all_configs.keys():
-            print(account_id)
-        selected = (await ainput("请输入要导入配置的账号标识（多个逗号分隔）： ")).strip()
-        selected_ids = [s.strip() for s in selected.split(',')]
+        for idx, account_id in enumerate(account_keys, start=1):
+            print(f"{idx}. {account_id}")
+
+        selection = (await ainput("请输入要导入配置的账号序号（多个逗号分隔）： ")).strip()
+        selected_numbers = [s.strip() for s in selection.split(',')]
+        selected_ids = []
+        for num_str in selected_numbers:
+            if num_str.isdigit():
+                index = int(num_str) - 1
+                if 0 <= index < len(account_keys):
+                    selected_ids.append(account_keys[index])
+                else:
+                    print(f"无效的序号: {num_str}")
+            else:
+                print(f"无效输入: {num_str}")
+
         imported = 0
         for account_id in selected_ids:
             if account_id in all_configs:
@@ -266,6 +280,7 @@ async def import_all_configs():
     except Exception as e:
         logger.error(f"导入配置时发生错误：{repr(e)}")
         print(f"导入配置时发生错误：{repr(e)}")
+
 
 async def message_handler(event, account_id):
     if not monitor_active:
