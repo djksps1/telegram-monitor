@@ -271,7 +271,6 @@ async def message_handler(event, account_id):
     if not monitor_active:
         return
 
-    # 从全局 ACCOUNTS 中获取当前账号
     account = ACCOUNTS.get(account_id)
     if not account:
         return
@@ -287,9 +286,9 @@ async def message_handler(event, account_id):
     chat_id = event.chat_id
     message_id = event.message.id
 
-    if (chat_id, message_id) in processed_messages:
+    if (account_id, chat_id, message_id) in processed_messages:
         return
-    processed_messages.add((chat_id, message_id))
+    processed_messages.add((account_id, chat_id, message_id))
 
     try:
         message_text = event.raw_text or ''
@@ -303,7 +302,6 @@ async def message_handler(event, account_id):
         sender_id = sender.id if sender else None
         if sender_id == own_user_id:
             return
-
         if chat_id in all_messages_config:
             config = all_messages_config[chat_id]
             user_set = set(config.get('users', []))
@@ -318,7 +316,6 @@ async def message_handler(event, account_id):
                         logger.info(f"已转发对话 {chat_id} 的消息到ID: {target_id}")
         else:
             handled = False
-            keyword_config = account["config"]["keyword_config"]
             for keyword, config in keyword_config.items():
                 if chat_id not in config.get('chats', []):
                     continue
@@ -341,8 +338,7 @@ async def message_handler(event, account_id):
                         if log_file:
                             try:
                                 with open(log_file, 'a', encoding='utf-8') as f:
-                                    f.write(
-                                        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 对话 {chat_id} 完全匹配 '{keyword}': {message_text}\n")
+                                    f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 对话 {chat_id} 完全匹配 '{keyword}': {message_text}\n")
                                 logger.info(f"已写入消息到文件 {log_file}")
                             except Exception as e:
                                 logger.error(f"写入文件 {log_file} 时出错：{e}")
@@ -361,7 +357,7 @@ async def message_handler(event, account_id):
                         # ====================================
                         handled = True
                         break
-
+                        
                 elif match_type == 'partial':
                     if keyword in message_text_lower:
                         logger.info(f"检测到关键词 '{keyword}' 的消息: {message_text}")
@@ -373,8 +369,7 @@ async def message_handler(event, account_id):
                         if log_file:
                             try:
                                 with open(log_file, 'a', encoding='utf-8') as f:
-                                    f.write(
-                                        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 对话 {chat_id} 关键词 '{keyword}': {message_text}\n")
+                                    f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 对话 {chat_id} 关键词 '{keyword}': {message_text}\n")
                                 logger.info(f"已写入消息到文件 {log_file}")
                             except Exception as e:
                                 logger.error(f"写入文件 {log_file} 时出错：{e}")
@@ -407,8 +402,7 @@ async def message_handler(event, account_id):
                         if log_file:
                             try:
                                 with open(log_file, 'a', encoding='utf-8') as f:
-                                    f.write(
-                                        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 对话 {chat_id} 正则匹配 '{keyword}': {message_text}\n")
+                                    f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 对话 {chat_id} 正则匹配 '{keyword}': {message_text}\n")
                                 logger.info(f"已写入消息到文件 {log_file}")
                             except Exception as e:
                                 logger.error(f"写入文件 {log_file} 时出错：{e}")
@@ -417,8 +411,7 @@ async def message_handler(event, account_id):
                             target_id = config['regex_send_target_id']
                             random_offset = config.get('regex_send_random_offset', 0)
                             delete_after_sending = config.get('regex_send_delete', False)
-                            await send_regex_matched_message(target_id, matched_text, random_offset,
-                                                             delete_after_sending, account_id)
+                            await send_regex_matched_message(target_id, matched_text, random_offset, delete_after_sending, account_id)
                         if config.get('reply_enabled'):
                             min_delay = config.get('reply_delay_min', 0)
                             max_delay = config.get('reply_delay_max', 0)
