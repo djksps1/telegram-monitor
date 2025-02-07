@@ -244,13 +244,13 @@ async def import_all_configs():
         with open(filepath, "r", encoding="utf-8") as f:
             all_configs = json.load(f)
         account_keys = list(all_configs.keys())
-        account_keys.sort()  
+        # account_keys.sort()  
+
         print("配置文件中包含以下账号：")
         for idx, account_id in enumerate(account_keys, start=1):
             print(f"{idx}. {account_id}")
-
         selection = (await ainput("请输入要导入配置的账号序号（多个逗号分隔）： ")).strip()
-        selected_numbers = [s.strip() for s in selection.split(',')]
+        selected_numbers = [s.strip() for s in selection.split(',') if s.strip() != '']
         selected_ids = []
         for num_str in selected_numbers:
             if num_str.isdigit():
@@ -280,7 +280,6 @@ async def import_all_configs():
     except Exception as e:
         logger.error(f"导入配置时发生错误：{repr(e)}")
         print(f"导入配置时发生错误：{repr(e)}")
-
 
 async def message_handler(event, account_id):
     if not monitor_active:
