@@ -99,10 +99,10 @@
 1. 克隆或下载本项目代码：
    ```bash
    git clone https://github.com/djksps1/telegram-monitor.git
-```
+
  
 2. 安装依赖：
-
+   ```bash
    pip install -r requirements.txt
 
 
