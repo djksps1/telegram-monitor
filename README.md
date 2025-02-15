@@ -102,9 +102,8 @@
 ```
  
 2. 安装依赖：
-   ```bash
+
    pip install -r requirements.txt
-```
 
 
 3. 获取 Telegram API 凭证（`api_id` 和 `api_hash`）。
