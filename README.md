@@ -1,4 +1,3 @@
-```markdown
 # Telegram 消息监控程序
 
 [English](./README_EN.md)
@@ -98,11 +97,13 @@
 ## 安装指南
 
 1. 克隆或下载本项目代码：
+
+
    ```bash
    git clone https://github.com/djksps1/telegram-monitor.git
 ```
  
-1. 安装依赖：
+2. 安装依赖：
 
 
 ```bash
@@ -110,7 +111,6 @@ pip install -r requirements.txt
 ```
 
 
-```markdown
 3. 获取 Telegram API 凭证（`api_id` 和 `api_hash`）。
  
 4. 配置 One/NEW API 的 `api_key` 与 `api_base_url` 以使用 AI 模型服务。
