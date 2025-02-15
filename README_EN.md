@@ -1,95 +1,97 @@
-# Telegram Message Monitor Program
+# Telegram Message Monitoring Program
 
-[中文版](./README.md)
+[中文](./README.md)
 
-## Project Overview
-This project is a Python-based Telegram message monitoring program that interacts with the Telegram API using the [Telethon](https://github.com/LonamiWebs/Telethon) library.  
-In the latest update, the program introduces several new features and improvements, including:
+## Project Introduction
 
-- **Advanced Message Monitoring**  
-  Monitor messages in specified conversations using exact, partial, or regular expression matching rules.  
-  When a match is found, the program can automatically forward messages, send email notifications, and log the matched messages to local files.  
-  Additionally, a **new reply feature** has been added:  
-  When a keyword is detected, the program will wait for a configurable random delay and then reply to the original message in the same conversation.  
-  The reply content is chosen at random from a set of pre-configured reply phrases.
+This project is a Telegram message monitoring program based on Python, using the [Telethon](https://github.com/LonamiWebs/Telethon) library to interact with the Telegram API.  
+In the latest version, the program introduces and improves the following main features:
 
-- **File Extension Monitoring**  
-  Detect file messages with specified extensions and perform auto-forwarding and email notifications.
+- **Message Monitoring**  
+  The program can monitor messages in specified conversations, supporting keyword matching, regular expression matching, and file extension matching.  
+  When a match is found, the program can automatically forward the message, send an email notification, or log the result to a local file.  
+  Additionally, a **reply feature** has been added:  
+  When a keyword is detected, the program can randomly select a reply from a set of pre-configured phrases and reply directly in the same conversation.  
+  Users can also set a random delay before the reply (within a specified time range), making the reply feel more natural.
 
-- **Full Monitoring & User Filtering**  
-  Monitor all messages in selected channels, groups, or conversations with support for filtering by user ID, username, or nickname.  
-  Only messages from the specified users will be processed and logged, reducing unnecessary log entries.
+- **Full Monitoring and User Filtering**  
+  The program can monitor all messages in specified channels, groups, or conversations and supports filtering based on user ID, username, or nickname.  
+  It only processes messages that meet the conditions, avoiding irrelevant log outputs.  
+  Furthermore, it supports saving matched messages to local files.
 
 - **Scheduled Messages**  
-  Schedule message-sending tasks using Cron expressions, with options for random delay and automatic deletion after sending.
+  Users can configure scheduled message tasks using Cron expressions, with options for random delays and automatic message deletion after sending.  
+  A new scheduled power on/off feature has been added, allowing the program to be turned on/off at specified times, also supporting Cron expressions.
 
-- **Button and Image Processing**  
-  For messages that include inline buttons and images, the program automatically uploads the image to an AI model for recognition.  
-  Based on the AI response, the program will automatically select and click the corresponding button.  
-  If the AI call fails, it retries once after 10 seconds; if it still fails, processing is abandoned and the local image file is deleted immediately.
+- **Button and Image Handling**  
+  For messages with Inline buttons and images, the program will automatically call an AI model to recognize the image content,  
+  and based on the AI feedback, automatically select and click the corresponding button.  
+  If the AI model call fails, the program will retry (up to once), and if it still fails, it will skip the processing and delete the local image.
 
-- **Enhanced Account Management (Numeric Sequence Management)**  
-  Accounts are now managed by the order in which they are added.  
-  Each account is assigned a numeric identifier starting from 1 (the earlier the account is added, the lower its number).  
-  The account list displays both the sequence number and the associated phone number, and switching accounts can be done by simply entering the corresponding number.
+- **Account Management (Numeric Serial Number Management)**  
+  Account management has been optimized:  
+  - The system assigns a numeric serial number to each account based on the order of addition (starting from 1, with earlier additions having smaller numbers).  
+  - The account list will show both the serial number and the phone number;  
+  - When switching accounts, users can simply input the corresponding serial number to switch, making the operation more intuitive.
 
-- **Enhanced Configuration Management**  
-  - **Export All Configurations**:  
-    A one-key export feature allows you to export the configurations for all logged-in accounts into a single JSON file.  
-    In the exported file, each account’s configuration is keyed by its account identifier (phone number).  
-  - **Selective Import**:  
-    When importing, the program reads the account identifiers from the configuration file and allows you to selectively import configurations for the currently logged-in accounts.  
-    The export/import process now fully supports the new reply functionality fields (reply enabled flag, reply phrases, and reply delay range).
+- **Configuration Management**  
+  - **One-click Export All Account Configurations**: Export the configuration information (including keywords, file extensions, full monitoring, button monitoring, image listening, and scheduled task configurations) of all logged-in accounts to a JSON file, with the account identifier (phone number) as the key.  
+  - **Selective Import of Configurations**: Supports importing configurations for the currently logged-in accounts based on the account identifier in the exported file. The newly added reply feature configuration items (reply switch, reply phrases, reply delay range) will also be imported, and missing items will be automatically filled with default values.
 
 - **Proxy Support**  
-  Users can configure proxy settings (socks5, socks4, or HTTP) to ensure proper connectivity in restricted network environments.
+  Supports user-configured proxies (socks5, socks4, or HTTP) for connecting to Telegram in restricted network environments.
 
-- **Optimized Logging**  
-  The log output has been refined to record only events that match the monitoring rules, keeping the log file clean and focused on key events and errors.
+- **Log Recording**  
+  The program records key events, error information, and the matching processing process in log files.  
+  The improved log output only records actual matched and processed events, avoiding redundant logs, making the log content clearer.
 
 ## Features
 
 - **Keyword Monitoring**  
-  Monitor messages in specified conversations based on exact, partial, or regex matching.  
-  Options include auto-forwarding, email notifications, and local file logging.  
-  **New Reply Feature:** When a keyword is detected, the program waits for a user-defined random delay and then replies to the original message with one randomly chosen reply phrase from a pre-configured list.
+  - Supports exact matching, keyword matching, and regular expression matching.  
+  - Optional configurations for automatic forwarding, email notifications, and log recording;  
+  - For regular expression matching, results can be forwarded to specified conversations (supporting random delays and deletion after sending);  
+  - **New reply feature**: When a keyword is detected, the program can reply in the same conversation with a random reply chosen from pre-configured phrases, and set a random delay before replying.
 
 - **File Extension Monitoring**  
-  Automatically detects and processes messages containing files with specified extensions, with options for auto-forwarding and email notifications.
+  Automatically processes messages with specific file extensions (such as `.pdf`, `.docx`, etc.), supporting automatic forwarding and email notifications.  
+  It also introduces user filtering, allowing message filtering based on user ID, username, or nickname.
 
-- **Full Monitoring & User Filtering**  
-  Monitor all messages in specified channels or groups and filter by user ID, username, or nickname so that only relevant messages are processed.
+- **Full Monitoring and User Filtering**  
+  Supports full message monitoring for specified channels, groups, or conversations,  
+  and processes only messages from specific users (based on user ID, username, or nickname), avoiding irrelevant log output.  
+  Supports saving matched messages to local files.
 
 - **Scheduled Messages**  
-  Schedule message-sending tasks using Cron expressions, with support for random delay and post-send deletion.
+  Uses Cron expressions to configure scheduled messages,  
+  with support for random delays and automatic deletion after sending.  
+  The new scheduled power on/off feature allows specifying times for power on/off, supporting Cron expression settings.
 
-- **Button and Image Processing**  
-  When a message contains images with inline buttons, the image is uploaded to an AI model for recognition, and the corresponding button is clicked automatically based on the AI response.  
-  If the initial AI call fails, the program retries once after 10 seconds; if it still fails, the local image file is immediately deleted.
+- **Button and Image Handling**  
+  Automatically calls the AI model to recognize image content and clicks the corresponding button based on AI feedback;  
+  If the AI model fails, it retries once; if it fails again, it skips the processing and deletes the local image.
 
 - **Account Management**  
-  Accounts are displayed and managed by a numeric sequence based on the order of addition (starting from 1).  
-  The account list shows both the sequence number and the phone number, and switching accounts is as simple as entering the corresponding number.
+  - Accounts are numbered in the order of addition (starting from 1), with both serial number and phone number displayed during command interactions;  
+  - To switch accounts, users can directly enter the numeric serial number.
 
 - **Configuration Management**  
-  - **Export All Configurations**:  
-    Export all account configurations (including keyword, file extension, full monitoring, button monitoring, image listener, and scheduled tasks) into a single JSON file.  
-  - **Selective Import**:  
-    Import configurations based on account identifiers, with support for automatically filling in new reply-related fields if they are missing.
+  - **Export Configurations**: Exports all account monitoring configurations (including newly added reply feature fields) to a JSON file;  
+  - **Import Configurations**: Supports selective importing of configurations, with default values automatically filled for missing reply feature fields.
 
 - **Proxy Support**  
-  Enable proxy configuration to work around network restrictions.
+  Supports socks5, socks4, and HTTP proxies, making it easy to run in different network environments.
 
-- **Optimized Logging**  
-  Only events that meet the monitoring criteria are logged in `telegram_monitor.log`, ensuring a focused and uncluttered log file.
+- **New Feature: Run a Specified Number of Times**  
+  All monitoring configurations now support specifying the number of runs. After the specified number of runs, the program will automatically delete the configuration.
 
-## Requirements
+## Environment Requirements
 
-- Python 3.7 or above  
-- Dependencies: Telethon, openai, pytz, apscheduler, PySocks, and others as listed in `requirements.txt`  
-- Telegram API credentials (`api_id` and `api_hash`)  
-- SMTP email information (if email notifications are required)  
-- One/New API credentials (`api_key` and `base_url`) for AI model calls (if image recognition is needed)
+- Python 3.7 or higher  
+- Dependencies: Telethon, openai, pytz, apscheduler, PySocks, smtplib, etc.  
+- Telegram `api_id` and `api_hash` are required  
+- SMTP email information (if email notifications are needed)  
+- One/NEW API's `api_key` and `api_base_url` for AI model services (if image recognition is required)
 
 ## Installation Guide
 
@@ -98,149 +100,144 @@ In the latest update, the program introduces several new features and improvemen
    git clone https://github.com/djksps1/telegram-monitor.git
 ```
  
-1. Install the dependencies:
+1. Install dependencies:
 
-   ```bash
+
+```bash
 pip install -r requirements.txt
 ```
  
-2. Obtain your Telegram API credentials (`api_id` and `api_hash`).
+2. Obtain Telegram API credentials (`api_id` and `api_hash`).
  
-3. Configure the One/NEW API `api_key` and `api_base_url` for AI model services.
+3. Configure One/NEW API's `api_key` and `api_base_url` for AI model services.
  
-4. Configure the SMTP email information if email notifications are required.
+4. Configure SMTP email information (if email notifications are needed).
 
 ## Usage Instructions 
  
 1. **Run the Program** 
-Start the program with:
+Start the program:
 
 ```bash
 python monitor.py
 ```
  
 2. **Login to Telegram** 
-On the first run, you will be prompted to enter your `api_id`, `api_hash`, and your Telegram phone number along with the verification code.
-If two-step verification is enabled, you will also need to enter your password.
+When running the program for the first time, it will prompt you to enter `api_id`, `api_hash`, phone number, and verification code (if two-step verification is enabled, a password is also required).
  
 3. **Configure Monitoring Parameters** 
-After startup, the program enters an interactive command mode.
-Use the available commands to add or modify monitoring rules for keywords, file extensions, full monitoring, button monitoring, scheduled tasks, and image listeners.
-*Note:* In keyword monitoring configuration, you can enable the reply feature, set reply phrases, and configure the reply delay range. When a keyword is detected, the program will automatically reply to the original message in the same conversation.
+After the program starts, it enters an interactive command mode where users can add or modify various monitoring configurations (including keyword monitoring, file extension monitoring, full monitoring, button monitoring, scheduled tasks, and image listening).
+Note: In the keyword configuration, you can enable the reply feature, configure reply phrases, and set the reply delay range. The program will automatically reply with a random reply in the same conversation when the keyword is detected.
  
-4. **Manage Configurations**  
-  - Use the `exportallconfig` command to export all account configurations into a single JSON file.
-The exported file includes complete monitoring settings (including the new reply fields) keyed by phone number.
+4. **Configuration Management**  
+  - Use the `exportallconfig` command to export all account configurations, generating a JSON file that includes the full monitoring parameters (including the new reply feature configurations).
  
-  - Use the `importallconfig` command to selectively import configurations based on the account identifiers in the configuration file.
-During import, any missing reply-related fields will be automatically filled with default values.
+  - Use the `importallconfig` command to import configurations based on the account identifier (phone number) in the exported file, and it will automatically fill in the missing reply feature fields (such as `reply_enabled`, `reply_texts`, `reply_delay_min`, `reply_delay_max`).
  
 5. **Account Management**  
-  - The `listaccount` command displays all logged-in accounts with a numeric sequence and associated phone number.
+  - In the `listaccount` command, all logged-in accounts will be displayed with numeric serial numbers and corresponding phone numbers;
  
-  - To switch accounts, use the `switchaccount` command and enter the corresponding numeric sequence (e.g., entering `1` switches to the first account).
+  - When switching accounts, simply input the displayed numeric serial number (e.g., input `1` to switch to the first added account).
  
 6. **Start Monitoring** 
 After configuration, enter the `start` command to begin monitoring messages.
 
-## Available Commands 
+## Available Commands List 
  
 - **Account Management**  
-  - `addaccount` : Add a new account
+  - `addaccount`: Add a new account
  
-  - `removeaccount` : Remove an account
+  - `removeaccount`: Remove an account
  
-  - `listaccount` : List all accounts (displayed with numeric sequence)
+  - `listaccount`: List all accounts (displayed by numeric serial number)
  
-  - `switchaccount` : Switch the current working account by entering its numeric sequence
+  - `switchaccount`: Switch to the current working account by entering the numeric serial number
  
 - **Configuration Management**  
-  - `exportallconfig` : Export configurations for all accounts into one file
+  - `exportallconfig`: Export all account configurations
  
-  - `importallconfig` : Selectively import configurations based on account identifiers
+  - `importallconfig`: Selectively import configurations (supports automatic filling of new fields)
  
-  - `blockbot` / `unblockbot` : Block or unblock specified Telegram Bots
+  - `blockbot` / `unblockbot`: Block or unblock a specified Telegram Bot
  
-- **Monitoring Configuration**  
-  - `addkeyword` / `modifykeyword` / `removekeyword` / `showkeywords` : Manage keyword monitoring
-(Note: When adding or modifying keyword configurations, you can set options for auto-forwarding, email notifications, local logging, and the new reply feature.)
+- **Monitoring Configuration Management**  
+  - `addkeyword` / `modifykeyword` / `removekeyword` / `showkeywords`: Manage keyword monitoring
  
-  - `addext` / `modifyext` / `removeext` / `showext` : Manage file extension monitoring
+  - `addext` / `modifyext` / `removeext` / `showext`: Manage file extension monitoring (supports user filtering)
  
-  - `addall` / `modifyall` / `removeall` / `showall` : Manage full monitoring configuration
+  - `addall` / `modifyall` / `removeall` / `showall`: Manage full monitoring configurations (supports saving messages to local files)
  
-  - `addbutton` / `modifybutton` / `removebutton` / `showbuttons` : Manage button keyword monitoring
+  - `addbutton` / `modifybutton` / `removebutton` / `showbuttons`: Manage button keyword monitoring
  
-  - `addimagelistener` / `removeimagelistener` / `showimagelistener` : Manage image+button listener conversation IDs
+  - `addimagelistener` / `removeimagelistener` / `showimagelistener`: Manage image + button listening conversation IDs
  
 - **Scheduled Task Management**  
-  - `schedule` / `modifyschedule` / `removeschedule` / `showschedule` : Manage scheduled message tasks
+  - `schedule` / `modifyschedule` / `removeschedule` / `showschedule`: Manage scheduled message tasks (supports random delays and automatic deletion)
  
 - **Monitoring Control**  
-  - `start` / `stop` : Start or stop monitoring
+  - `start` / `stop`: Start or stop monitoring
  
-  - `exit` : Exit the program
+  - `exit`: Exit the program
 
 ## Feature Details 
  
 - **Keyword Monitoring** 
-Supports multiple matching modes (exact, partial, regex).
-In addition to auto-forwarding, email notifications, and logging, the **new reply feature**  allows the program to wait for a random delay (as configured) and then reply to the original message with one randomly chosen reply phrase from the configured list.
+Supports multiple matching modes (exact match, partial match, regular expression match), with options for automatic forwarding, email notifications, and log recording.
+**New reply feature** : After detecting the set keyword, the program will wait for a random period based on the configured delay, then randomly select a reply from the reply phrases and send it in the same conversation.
  
 - **File Extension Monitoring** 
-Automatically processes messages with specified file extensions, with options for auto-forwarding and email notifications.
+Automatically handles messages with specific file types, supporting automatic forwarding and email notifications, and introduces user filtering.
  
-- **Full Monitoring & User Filtering** 
-Monitor all messages in selected channels or groups and filter by user ID, username, or nickname so that only relevant messages are processed.
+- **Full Monitoring and User Filtering** 
+Supports full message monitoring for specified channels, groups, or conversations, and processes only messages that meet the user's filter conditions. It also supports saving matched messages locally.
  
-- **Button Keyword Monitoring** 
-Automatically clicks buttons containing specified keywords when messages with inline buttons are detected.
- 
-- **Image and AI Model Processing** 
-Upload images from messages (that include buttons) to an AI model for analysis.
-The program then automatically clicks the corresponding button based on the AI response.
-If the first AI call fails, it retries once after 10 seconds; if it still fails, the local image file is deleted immediately.
+- **Button and Image Handling** 
+Automatically calls the AI model to recognize image content and clicks the corresponding button based on AI feedback; supports retries and local image cleanup.
  
 - **Scheduled Messages** 
-Set up scheduled message-sending tasks using Cron expressions, with options for random delay and post-send deletion.
+Configures scheduled tasks using Cron expressions, with random delays and automatic deletion after sending. A new scheduled power on/off feature has been added, supporting specified times for power on/off.
  
-- **Logging** 
-All key events and errors are recorded in `telegram_monitor.log`.
-Improved logging ensures that only events meeting the monitoring criteria are logged, keeping the log file concise and focused.
-
-## Logging 
+- **Account Management** 
+Accounts are numbered based on the order of addition, making it easy to view and switch between accounts using numeric serial numbers.
  
-- **Log File** : `telegram_monitor.log`
-This file records program status, error messages, and key events.
-With the new updates, only matching events are logged—non-matching messages will not clutter the log file.
+- **Configuration Management** 
+Export and import functions support saving and restoring all monitoring configurations, including newly added reply feature parameters, ensuring complete configurations across machines and backup/restore scenarios.
+ 
+- **Proxy Support** 
+Users can configure proxies to run the program in restricted network environments.
+ 
+- **Log Recording** 
+The log file `telegram_monitor.log` records the program's running status, error messages, and actual matched processing events, ensuring the logs are concise and effective.
 
 ## Notes 
 
-- Please comply with Telegram’s terms of service to avoid account restrictions.
+- Please comply with Telegram's terms of use to avoid account limitations due to improper use of monitoring features.
  
-- Securely store your `api_id`, `api_hash`, and session files to prevent account information leakage.
+- Safeguard your `api_id`, `api_hash`, and session files to prevent account information leakage.
 
-- Ensure SMTP settings and email authorization codes are configured correctly if email notifications are used.
+- If you require email notifications, please configure the SMTP information and authorization code correctly.
  
-- Configure the One/NEW API `api_key` and `api_base_url` properly for AI model calls.
+- Configure One/NEW API's `api_key` and `api_base_url` to use AI model services for image recognition.
+ 
+- When blocking or monitoring a specific channel or bot in a group chat, input the channel ID without the leading "-100", for example, if the channel ID is `-1001234567`, enter `1234567`. For bots, input the `bot_id`. When monitoring channels, enter the channel ID normally.
 
-## Common Issues 
+## Frequently Asked Questions 
  
-1. **Cannot Connect to Telegram** 
-Verify your network, proxy configurations, and API credentials.
+1. **Unable to connect to Telegram** 
+Check the network, proxy configuration, and API credentials.
  
-2. **Email Sending Failed** 
-Check your SMTP settings and email authorization code.
+2. **Email sending failure** 
+Ensure that the SMTP configuration is correct and the correct email authorization code is set.
  
-3. **AI Model Call Failed** 
-The program will auto-retry once; if it still fails, processing is abandoned and the local image file is deleted.
+3. **AI model call failure** 
+The program will retry once, and if it fails again, it will skip the processing and delete the local image.
  
-4. **Scheduled Tasks Not Executing** 
-Check your Cron expression, timezone settings, and ensure that the scheduler is running.
+4. **Scheduled task not executing** 
+Check the Cron expression, time zone settings, and ensure the scheduler is running.
 
-## Contribution and Support 
+## Contributions and Support 
 
-Contributions, suggestions, and improvements are welcome. Please submit issues or pull requests for bug fixes or feature enhancements.
+We welcome suggestions and improvements. If you have any questions or wish to request new features, please submit an Issue or Pull Request.
 
 ## License 
 
