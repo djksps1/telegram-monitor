@@ -34,20 +34,8 @@ EMAIL_PASSWORD = "您的邮箱授权码"      # 邮箱授权码或密码
 RECIPIENT_EMAIL = "收件人邮箱@example.com"  # 收件人邮箱
 
 ACCOUNTS = {}
-# 格式：{ account_id: { "client": TelegramClient, "own_user_id": ..., "phone": ..., "config": { ... } } }
-# 其中 config 包含：
-# {
-#    "keyword_config": {},
-#    "file_extension_config": {},
-#    "all_messages_config": {},
-#    "button_keyword_config": {},
-#    "image_button_monitor": [],      
-#    "scheduled_messages": []
-# }
-BLOCKED_BOTS = set() 
-
+D_BOTS = set() 
 current_account = None  
-
 processed_messages = set()
 
 # 日志配置
@@ -436,7 +424,6 @@ async def message_handler(event, account_id):
 
         if isinstance(event.chat, Chat):
             local_fwd = get_fwd_channel_id(event.message.fwd_from)
-            # 如果转发信息为空且 sender 为 Channel，则取 sender.id
             if local_fwd is None and isinstance(sender, Channel):
                 local_fwd = sender.id
             if local_fwd and local_fwd in channel_in_group_config:
@@ -816,10 +803,10 @@ exit               - 退出程序
                 chat_ids_input = (await ainput("请输入要监听的对话ID（多个逗号分隔）： ")).strip()
                 chat_ids = [int(x.strip()) for x in chat_ids_input.split(',')]
                 
-                print("\n请选择用户类型： 1. 用户ID  2. 用户名  3. 昵称")
+                print("\n请选择要监控用户其类型： 1. 用户ID(频道id与Bot id也可行)  2. 用户名  3. 昵称")
                 user_option = (await ainput("请输入选项编号（直接回车表示全部）： ")).strip()
                 if user_option in ['1', '2', '3']:
-                    users_input = (await ainput("请输入对应用户标识（多个逗号分隔）： ")).strip()
+                    users_input = (await ainput("请输入对应用户标识（回车则监控全部用户，多个逗号分隔）： ")).strip()
                     if users_input:
                         if user_option == '1':
                             user_set = [int(u.strip()) for u in users_input.split(',') if u.strip().isdigit()]
@@ -930,7 +917,7 @@ exit               - 退出程序
                         else:
                             print("输入无效，匹配类型保持不变")
                     if '6' in options:
-                        print("请选择用户类型： 1. 用户ID  2. 用户名  3. 昵称")
+                        print("请选择要监控用户其类型： 1. 用户ID(频道id与Bot id也可行)  2. 用户名  3. 昵称")
                         user_option = (await ainput("请输入用户类型编号: ")).strip()
                         users_input = (await ainput("请输入对应用户标识（多个逗号分隔）： ")).strip()
                         if users_input:
@@ -977,7 +964,7 @@ exit               - 退出程序
                     if '10' in options:
                         filter_choice = (await ainput("是否设置屏蔽过滤？(yes/no): ")).strip().lower() == 'yes'
                         if filter_choice:
-                            blocked_users_input = (await ainput("请输入屏蔽用户（用户ID，多个逗号分隔）： ")).strip()
+                            blocked_users_input = (await ainput("请输入屏蔽用户、频道或Bot（ID，多个逗号分隔）： ")).strip()
                             blocked_users = [x.strip() for x in blocked_users_input.split(',')] if blocked_users_input else []
                         else:
                             blocked_users = []
@@ -1016,7 +1003,7 @@ exit               - 退出程序
                 extensions = [ext.strip() if ext.startswith('.') else '.'+ext.strip() for ext in extensions_input.split(',')]
                 chat_ids_input = (await ainput("请输入监听对话ID（多个逗号分隔）： ")).strip()
                 chat_ids = [int(x.strip()) for x in chat_ids_input.split(',')]
-                print("请选择用户类型： 1. 用户ID  2. 用户名  3. 昵称")
+                print("请选择要监控用户其类型： 1. 用户ID(频道id与Bot id也可行)  2. 用户名  3. 昵称")
                 user_option = (await ainput("请输入选项编号（可留空表示全部）： ")).strip()
                 if user_option in ['1', '2', '3']:
                     users_input = (await ainput("请输入对应用户标识（多个逗号分隔）： ")).strip()
@@ -1039,7 +1026,7 @@ exit               - 退出程序
                     target_ids = []
                 filter_choice = (await ainput("是否设置屏蔽过滤？(yes/no): ")).strip().lower() == 'yes'
                 if filter_choice:
-                    blocked_users_input = (await ainput("请输入屏蔽用户（用户ID，多个逗号分隔）： ")).strip()
+                    blocked_users_input = (await ainput("请输入屏蔽用户、频道或Bot（ID，多个逗号分隔）： ")).strip()
                     blocked_users = [x.strip() for x in blocked_users_input.split(',')] if blocked_users_input else []
                 else:
                     blocked_users = []
@@ -1085,7 +1072,7 @@ exit               - 退出程序
                     cfg[ext]['email_notify'] = email_notify
                     filter_choice = (await ainput("是否设置屏蔽过滤？(yes/no): ")).strip().lower() == 'yes'
                     if filter_choice:
-                        blocked_users_input = (await ainput("请输入屏蔽用户（用户ID，多个逗号分隔）： ")).strip()
+                        blocked_users_input = (await ainput("请输入屏蔽用户、频道或Bot（ID，多个逗号分隔）： ")).strip()
                         blocked_users = [x.strip() for x in blocked_users_input.split(',')] if blocked_users_input else []
                     else:
                         blocked_users = []
@@ -1129,7 +1116,7 @@ exit               - 退出程序
                     continue
                 cfg = ACCOUNTS[current_account]["config"]["all_messages_config"]
                 chat_id = int((await ainput("请输入全量监控对话ID: ")).strip())
-                print("请选择用户类型： 1. 用户ID  2. 用户名  3. 昵称")
+                print("请选择要监控用户其类型： 1. 用户ID(频道id与Bot id也可行)  2. 用户名  3. 昵称")
                 user_option = (await ainput("请输入选项编号（可留空表示全部）： ")).strip()
                 users_input = (await ainput("请输入对应用户标识（多个逗号分隔，可留空）： ")).strip()
                 if users_input:
@@ -1151,10 +1138,10 @@ exit               - 退出程序
                     max_executions = int(execution_limit_input)
                 else:
                     max_executions = None
-                log_file = (await ainput("请输入日志文件路径（直接回车则不记录）： ")).strip() or None
+                log_file = (await ainput("请输入baocun消息的文件路径（直接回车则不记录）： ")).strip() or None
                 filter_choice = (await ainput("是否设置屏蔽过滤？(yes/no): ")).strip().lower() == 'yes'
                 if filter_choice:
-                    blocked_users_input = (await ainput("请输入屏蔽用户（用户ID，多个逗号分隔）： ")).strip()
+                    blocked_users_input = (await ainput("请输入屏蔽用户、频道或Bot（ID，多个逗号分隔）： ")).strip()
                     blocked_users = [x.strip() for x in blocked_users_input.split(',')] if blocked_users_input else []
                 else:
                     blocked_users = []
@@ -1202,7 +1189,7 @@ exit               - 退出程序
                         else:
                             print("未启用自动转发")
                     if '4' in options:
-                        user_option = (await ainput("请输入用户类型（1. 用户ID 2. 用户名 3. 昵称）： ")).strip()
+                        user_option = (await ainput("请选择要监控用户其类型： 1. 用户ID(频道id与Bot id也可行)  2. 用户名  3. 昵称）： ")).strip()
                         users_input = (await ainput("请输入对应用户标识（多个逗号分隔）： ")).strip()
                         if users_input:
                             if user_option == '1':
@@ -1213,7 +1200,7 @@ exit               - 退出程序
                             config['users'] = []
                         config['user_option'] = user_option
                     if '5' in options:
-                        log_file = (await ainput("请输入新的日志文件路径（留空则删除）： ")).strip()
+                        log_file = (await ainput("请输入新的保存消息的文件路径（留空则删除）： ")).strip()
                         config['log_file'] = log_file or None
                     if '6' in options:
                         execution_limit_input = (await ainput("请输入新的执行次数限制（正整数），直接回车表示不设置： ")).strip()
@@ -1225,7 +1212,7 @@ exit               - 退出程序
                     if '7' in options:
                         filter_choice = (await ainput("是否设置屏蔽过滤？(yes/no): ")).strip().lower() == 'yes'
                         if filter_choice:
-                            blocked_users_input = (await ainput("请输入屏蔽用户（用户ID，多个逗号分隔）： ")).strip()
+                            blocked_users_input = (await ainput("请输入屏蔽用户、频道或Bot（ID，多个逗号分隔）： ")).strip()
                             blocked_users = [x.strip() for x in blocked_users_input.split(',')] if blocked_users_input else []
                         else:
                             blocked_users = []
