@@ -323,7 +323,6 @@ async def message_handler(event, account_id):
         return
     if not account.get('monitor_active', False):
         return
-
     own_user_id = account["own_user_id"]
     keyword_config = account["config"]["keyword_config"]
     file_extension_config = account["config"]["file_extension_config"]
@@ -1058,31 +1057,62 @@ exit               - 退出程序
                 if not ext.startswith('.'):
                     ext = '.' + ext
                 if ext in cfg:
-                    print(f"当前配置：{cfg[ext]}")
-                    chat_ids_input = (await ainput("请输入新的监听对话ID（多个逗号分隔）： ")).strip()
-                    cfg[ext]['chats'] = [int(x.strip()) for x in chat_ids_input.split(',')]
-                    auto_forward = (await ainput("是否启用自动转发？(yes/no): ")).strip().lower() == 'yes'
-                    cfg[ext]['auto_forward'] = auto_forward
-                    if auto_forward:
-                        target_ids_input = (await ainput("请输入新的转发目标对话ID（多个逗号分隔）： ")).strip()
-                        cfg[ext]['forward_targets'] = [int(x.strip()) for x in target_ids_input.split(',')]
-                    else:
-                        cfg[ext]['forward_targets'] = []
-                    email_notify = (await ainput("是否启用邮件通知？(yes/no): ")).strip().lower() == 'yes'
-                    cfg[ext]['email_notify'] = email_notify
-                    filter_choice = (await ainput("是否设置屏蔽过滤？(yes/no): ")).strip().lower() == 'yes'
-                    if filter_choice:
-                        blocked_users_input = (await ainput("请输入屏蔽用户、频道或Bot（ID，多个逗号分隔）： ")).strip()
-                        blocked_users = [x.strip() for x in blocked_users_input.split(',')] if blocked_users_input else []
-                    else:
-                        blocked_users = []
-                    cfg[ext]['blocked_users'] = blocked_users
-                    execution_limit_input = (await ainput("请输入新的执行次数限制（正整数），直接回车表示不设置： ")).strip()
-                    if execution_limit_input.isdigit():
-                        cfg[ext]['max_executions'] = int(execution_limit_input)
-                    else:
-                        cfg[ext]['max_executions'] = None
-                    cfg[ext]['execution_count'] = 0
+                    config = cfg[ext]
+                    print(f"当前配置：{config}")
+                    print("请输入要修改的项（逗号分隔）：")
+                    print("1. 文件后缀  2. 监听对话ID  3. 自动转发  4. 邮件通知")
+                    print("5. 用户过滤  6. 执行次数限制  7. 屏蔽过滤")
+                    options = (await ainput("请输入修改项: ")).strip().split(',')
+                    options = [x.strip() for x in options]
+                    if '1' in options:
+                        new_ext = (await ainput("请输入新的文件后缀: ")).strip().lower()
+                        if not new_ext.startswith('.'):
+                            new_ext = '.' + new_ext
+                        cfg[new_ext] = cfg.pop(ext)
+                        ext = new_ext
+                        print(f"文件后缀修改为： {new_ext}")
+                    if '2' in options:
+                        chat_ids_input = (await ainput("请输入新的监听对话ID（多个逗号分隔）： ")).strip()
+                        cfg[ext]['chats'] = [int(x.strip()) for x in chat_ids_input.split(',')]
+                        print("监听对话ID已更新")
+                    if '3' in options:
+                        auto_forward = (await ainput("是否启用自动转发？(yes/no): ")).strip().lower() == 'yes'
+                        cfg[ext]['auto_forward'] = auto_forward
+                        if auto_forward:
+                            target_ids_input = (await ainput("请输入自动转发目标对话ID（多个逗号分隔）： ")).strip()
+                            cfg[ext]['forward_targets'] = [int(x.strip()) for x in target_ids_input.split(',')]
+                        else:
+                            cfg[ext]['forward_targets'] = []
+                    if '4' in options:
+                        email_notify = (await ainput("是否启用邮件通知？(yes/no): ")).strip().lower() == 'yes'
+                        cfg[ext]['email_notify'] = email_notify
+                    if '5' in options:
+                        print("请选择要监控用户其类型： 1. 用户ID(频道id与Bot id也可行)  2. 用户名  3. 昵称")
+                        user_option = (await ainput("请输入用户类型编号: ")).strip()
+                        users_input = (await ainput("请输入对应用户标识（多个逗号分隔）： ")).strip()
+                        if users_input:
+                            if user_option == '1':
+                                cfg[ext]['users'] = [int(x.strip()) for x in users_input.split(',') if x.strip().isdigit()]
+                            else:
+                                cfg[ext]['users'] = [x.strip() for x in users_input.split(',')]
+                        else:
+                            cfg[ext]['users'] = []
+                        cfg[ext]['user_option'] = user_option
+                    if '6' in options:
+                        execution_limit_input = (await ainput("请输入新的执行次数限制（正整数），直接回车表示不设置： ")).strip()
+                        if execution_limit_input.isdigit():
+                            cfg[ext]['max_executions'] = int(execution_limit_input)
+                        else:
+                            cfg[ext]['max_executions'] = None
+                        cfg[ext]['execution_count'] = 0
+                    if '7' in options:
+                        filter_choice = (await ainput("是否设置屏蔽过滤？(yes/no): ")).strip().lower() == 'yes'
+                        if filter_choice:
+                            blocked_users_input = (await ainput("请输入屏蔽用户、频道或Bot（ID，多个逗号分隔）： ")).strip()
+                            blocked_users = [x.strip() for x in blocked_users_input.split(',')] if blocked_users_input else []
+                        else:
+                            blocked_users = []
+                        cfg[ext]['blocked_users'] = blocked_users
                     print(f"文件后缀配置更新为： {cfg[ext]}")
                 else:
                     print("未找到该文件后缀配置")
