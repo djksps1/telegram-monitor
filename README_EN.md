@@ -45,43 +45,6 @@ In the latest version, the program introduces and improves the following main fe
   The program records key events, error information, and the matching processing process in log files.  
   The improved log output only records actual matched and processed events, avoiding redundant logs, making the log content clearer.
 
-## Features
-
-- **Keyword Monitoring**  
-  - Supports exact matching, keyword matching, and regular expression matching.  
-  - Optional configurations for automatic forwarding, email notifications, and log recording;  
-  - For regular expression matching, results can be forwarded to specified conversations (supporting random delays and deletion after sending);  
-  - **New reply feature**: When a keyword is detected, the program can reply in the same conversation with a random reply chosen from pre-configured phrases, and set a random delay before replying.
-
-- **File Extension Monitoring**  
-  Automatically processes messages with specific file extensions (such as `.pdf`, `.docx`, etc.), supporting automatic forwarding and email notifications.  
-  It also introduces user filtering, allowing message filtering based on user ID, username, or nickname.
-
-- **Full Monitoring and User Filtering**  
-  Supports full message monitoring for specified channels, groups, or conversations,  
-  and processes only messages from specific users (based on user ID, username, or nickname), avoiding irrelevant log output.  
-  Supports saving matched messages to local files.
-
-- **Scheduled Messages**  
-  Uses Cron expressions to configure scheduled messages,  
-  with support for random delays and automatic deletion after sending.  
-  The new scheduled power on/off feature allows specifying times for power on/off, supporting Cron expression settings.
-
-- **Button and Image Handling**  
-  Automatically calls the AI model to recognize image content and clicks the corresponding button based on AI feedback;  
-  If the AI model fails, it retries once; if it fails again, it skips the processing and deletes the local image.
-
-- **Account Management**  
-  - Accounts are numbered in the order of addition (starting from 1), with both serial number and phone number displayed during command interactions;  
-  - To switch accounts, users can directly enter the numeric serial number.
-
-- **Configuration Management**  
-  - **Export Configurations**: Exports all account monitoring configurations (including newly added reply feature fields) to a JSON file;  
-  - **Import Configurations**: Supports selective importing of configurations, with default values automatically filled for missing reply feature fields.
-
-- **Proxy Support**  
-  Supports socks5, socks4, and HTTP proxies, making it easy to run in different network environments.
-
 - **New Feature: Run a Specified Number of Times**  
   All monitoring configurations now support specifying the number of runs. After the specified number of runs, the program will automatically delete the configuration.
 
@@ -179,35 +142,6 @@ After configuration, enter the `start` command to begin monitoring messages.
  
   - `exit`: Exit the program
 
-## Feature Details 
- 
-- **Keyword Monitoring** 
-Supports multiple matching modes (exact match, partial match, regular expression match), with options for automatic forwarding, email notifications, and log recording.
-**New reply feature** : After detecting the set keyword, the program will wait for a random period based on the configured delay, then randomly select a reply from the reply phrases and send it in the same conversation.
- 
-- **File Extension Monitoring** 
-Automatically handles messages with specific file types, supporting automatic forwarding and email notifications, and introduces user filtering.
- 
-- **Full Monitoring and User Filtering** 
-Supports full message monitoring for specified channels, groups, or conversations, and processes only messages that meet the user's filter conditions. It also supports saving matched messages locally.
- 
-- **Button and Image Handling** 
-Automatically calls the AI model to recognize image content and clicks the corresponding button based on AI feedback; supports retries and local image cleanup.
- 
-- **Scheduled Messages** 
-Configures scheduled tasks using Cron expressions, with random delays and automatic deletion after sending. A new scheduled power on/off feature has been added, supporting specified times for power on/off.
- 
-- **Account Management** 
-Accounts are numbered based on the order of addition, making it easy to view and switch between accounts using numeric serial numbers.
- 
-- **Configuration Management** 
-Export and import functions support saving and restoring all monitoring configurations, including newly added reply feature parameters, ensuring complete configurations across machines and backup/restore scenarios.
- 
-- **Proxy Support** 
-Users can configure proxies to run the program in restricted network environments.
- 
-- **Log Recording** 
-The log file `telegram_monitor.log` records the program's running status, error messages, and actual matched processing events, ensuring the logs are concise and effective.
 
 ## Notes 
 
