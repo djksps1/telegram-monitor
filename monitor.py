@@ -826,7 +826,7 @@ exit               - 退出程序
                 chat_ids_input = (await ainput("请输入要监听的对话ID（多个逗号分隔）： ")).strip()
                 chat_ids = [int(x.strip()) for x in chat_ids_input.split(',')]
                 
-                print("\n请选择要监控用户其类型： 1. 用户ID(频道id与Bot id也可行)  2. 用户名  3. 昵称")
+                print("\n请选择要监控用户其类型： 1. 用户ID(频道id或Bot id)  2. 用户名  3. 昵称")
                 user_option = (await ainput("请输入选项编号（直接回车表示全部）： ")).strip()
                 if user_option in ['1', '2', '3']:
                     users_input = (await ainput("请输入对应用户标识（回车则监控全部用户，多个逗号分隔）： ")).strip()
@@ -963,7 +963,7 @@ exit               - 退出程序
                         else:
                             print("输入无效，匹配类型保持不变")
                     if '6' in options:
-                        print("请选择要监控用户其类型： 1. 用户ID(频道id与Bot id也可行)  2. 用户名  3. 昵称")
+                        print("请选择要监控用户其类型： 1. 用户ID(频道i或Bot id)  2. 用户名  3. 昵称")
                         user_option = (await ainput("请输入用户类型编号: ")).strip()
                         users_input = (await ainput("请输入对应用户标识（多个逗号分隔）： ")).strip()
                         if users_input:
@@ -1049,7 +1049,7 @@ exit               - 退出程序
                 extensions = [ext.strip() if ext.startswith('.') else '.' + ext.strip() for ext in extensions_input.split(',')]
                 chat_ids_input = (await ainput("请输入监听对话ID（多个逗号分隔）： ")).strip()
                 chat_ids = [int(x.strip()) for x in chat_ids_input.split(',')]
-                print("请选择要监控用户其类型： 1. 用户ID(频道id与Bot id也可行)  2. 用户名  3. 昵称")
+                print("请选择要监控用户其类型： 1. 用户ID(频道id或Bot id)  2. 用户名  3. 昵称")
                 user_option = (await ainput("请输入选项编号（可留空表示全部）： ")).strip()
                 if user_option in ['1', '2', '3']:
                     users_input = (await ainput("请输入对应用户标识（多个逗号分隔）： ")).strip()
@@ -1166,7 +1166,7 @@ exit               - 退出程序
                         email_notify = (await ainput("是否启用邮件通知？(yes/no): ")).strip().lower() == 'yes'
                         cfg[ext]['email_notify'] = email_notify
                     if '5' in options:
-                        print("请选择要监控用户其类型： 1. 用户ID(频道id与Bot id也可行)  2. 用户名  3. 昵称")
+                        print("请选择要监控用户其类型： 1. 用户ID(频道id或Bot id)  2. 用户名  3. 昵称")
                         user_option = (await ainput("请输入用户类型编号: ")).strip()
                         users_input = (await ainput("请输入对应用户标识（多个逗号分隔）： ")).strip()
                         if users_input:
@@ -1253,7 +1253,7 @@ exit               - 退出程序
                     continue
                 cfg = ACCOUNTS[current_account]["config"]["all_messages_config"]
                 chat_id = int((await ainput("请输入全量监控对话ID: ")).strip())
-                print("请选择要监控用户其类型： 1. 用户ID(频道id与Bot id也可行)  2. 用户名  3. 昵称")
+                print("请选择要监控用户其类型： 1. 用户ID(频道id或Bot id)  2. 用户名  3. 昵称")
                 user_option = (await ainput("请输入选项编号（可留空表示全部）： ")).strip()
                 users_input = (await ainput("请输入对应用户标识（多个逗号分隔，可留空）： ")).strip()
                 if users_input:
@@ -1326,7 +1326,7 @@ exit               - 退出程序
                         else:
                             print("未启用自动转发")
                     if '4' in options:
-                        user_option = (await ainput("请选择要监控用户其类型： 1. 用户ID(频道id与Bot id也可行)  2. 用户名  3. 昵称）： ")).strip()
+                        user_option = (await ainput("请选择要监控用户其类型： 1. 用户ID(频道id或Bot id)  2. 用户名  3. 昵称）： ")).strip()
                         users_input = (await ainput("请输入对应用户标识（多个逗号分隔）： ")).strip()
                         if users_input:
                             if user_option == '1':
