@@ -13,6 +13,11 @@ In the latest version, the program introduces and improves the following main fe
   Additionally, a **reply feature** has been added:  
   When a keyword is detected, the program can randomly select a reply from a set of pre-configured phrases and reply directly in the same conversation.  
   Users can also set a random delay before the reply (within a specified time range), making the reply feel more natural.
+  
+- **Document suffix monitoring**
+  Automatically process messages with specific file extensions (e.g. `.pdf`, `.docx`, etc.), supporting automatic forwarding and email notification.
+  A new user filtering feature has also been added, allowing messages to be filtered based on user ID, username or nickname.
+  Added file saving function, can save to local specified folder, can specify the scope of the saved file
 
 - **Full Monitoring and User Filtering**  
   The program can monitor all messages in specified channels, groups, or conversations and supports filtering based on user ID, username, or nickname.  
