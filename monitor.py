@@ -272,7 +272,6 @@ async def import_all_configs():
                     if 'blocked_users' not in cfg_item:
                         cfg_item['blocked_users'] = []
                 config["keyword_config"] = keyword_cfg
-
                 ext_cfg = config.get("file_extension_config", {})
                 for key, cfg_item in ext_cfg.items():
                     if 'max_executions' not in cfg_item:
@@ -281,8 +280,13 @@ async def import_all_configs():
                         cfg_item['execution_count'] = 0
                     if 'blocked_users' not in cfg_item:
                         cfg_item['blocked_users'] = []
+                    if 'save_folder' not in cfg_item:
+                        cfg_item['save_folder'] = None
+                    if 'min_size' not in cfg_item:
+                        cfg_item['min_size'] = None
+                    if 'max_size' not in cfg_item:
+                        cfg_item['max_size'] = None
                 config["file_extension_config"] = ext_cfg
-
                 all_msg_cfg = config.get("all_messages_config", {})
                 for chat_id, cfg_item in all_msg_cfg.items():
                     if 'max_executions' not in cfg_item:
@@ -292,14 +296,13 @@ async def import_all_configs():
                     if 'blocked_users' not in cfg_item:
                         cfg_item['blocked_users'] = []
                 config["all_messages_config"] = all_msg_cfg
-
                 button_cfg = config.get("button_keyword_config", {})
                 for button_keyword, b_config in button_cfg.items():
-                    b_config['chats'] = set(b_config.get('chats', []))  # 确保 chats 是 set 类型，避免重复
-                    b_config['users'] = set(b_config.get('users', []))  # 同样确保 users 是 set 类型
+                    b_config['chats'] = set(b_config.get('chats', []))  
+                    b_config['users'] = set(b_config.get('users', []))  
                 config["button_keyword_config"] = button_cfg
                 
-                image_button_monitor = set(config.get("image_button_monitor", []))  # 同样将监听的对话ID转换为 set
+                image_button_monitor = set(config.get("image_button_monitor", [])) 
                 config["image_button_monitor"] = image_button_monitor
                 
                 scheduled_messages = config.get("scheduled_messages", [])
@@ -316,6 +319,7 @@ async def import_all_configs():
     except Exception as e:
         logger.error(f"导入配置时发生错误：{repr(e)}")
         print(f"导入配置时发生错误：{repr(e)}")
+
         
 async def message_handler(event, account_id):
     account = ACCOUNTS.get(account_id)
@@ -513,6 +517,26 @@ async def message_handler(event, account_id):
                                 send_email(f"检测到文件后缀名 '{file_extension}' 的消息：{file_name}")
                             if config.get('auto_forward'):
                                 await auto_forward_file_message(event, file_extension, account_id)
+                        
+                            if config.get('save_folder'):
+                                # 获取文件大小（单位：字节），转换为 MB
+                                file_size = event.message.media.document.size
+                                file_size_mb = file_size / (1024 * 1024)
+                                min_size = config.get('min_size')
+                                max_size = config.get('max_size')
+                                size_ok = True
+                                if min_size is not None and file_size_mb < min_size:
+                                    size_ok = False
+                                if max_size is not None and file_size_mb > max_size:
+                                    size_ok = False
+                                if size_ok:
+                                    save_folder = config.get('save_folder')
+                                    os.makedirs(save_folder, exist_ok=True)
+                                    file_path = await event.message.download_media(file=save_folder)
+                                    logger.info(f"已保存文件 '{file_name}' 到: {file_path}")
+                                else:
+                                    logger.info(f"文件大小 {file_size_mb:.2f} MB 不在设定范围内，未保存文件")
+                            
                             if config.get('max_executions'):
                                 config['execution_count'] = config.get('execution_count', 0) + 1
                                 if config['execution_count'] >= config['max_executions']:
@@ -776,7 +800,7 @@ exit               - 退出程序
                     print("请先切换或添加账号")
                     continue
                 cfg = ACCOUNTS[current_account]["config"]["keyword_config"]
-
+            
                 print("\n请选择关键词匹配类型：")
                 print("1. 完全匹配")
                 print("2. 关键词匹配")
@@ -824,23 +848,45 @@ exit               - 退出程序
                     log_file = (await ainput("请输入文件名称： ")).strip()
                 else:
                     log_file = None
+                
                 if auto_forward:
                     target_ids_input = (await ainput("请输入自动转发目标对话ID（多个逗号分隔）： ")).strip()
                     target_ids = [int(x.strip()) for x in target_ids_input.split(',')]
                 else:
                     target_ids = []
+                
                 filter_choice = (await ainput("是否设置屏蔽过滤？(yes/no): ")).strip().lower() == 'yes'
                 if filter_choice:
                     blocked_users_input = (await ainput("请输入屏蔽用户（用户ID，多个逗号分隔）： ")).strip()
                     blocked_users = [x.strip() for x in blocked_users_input.split(',')] if blocked_users_input else []
                 else:
                     blocked_users = []
+                
                 execution_limit_input = (await ainput("请输入执行次数限制（正整数），直接回车表示不设置： ")).strip()
                 if execution_limit_input.isdigit():
                     max_executions = int(execution_limit_input)
                 else:
                     max_executions = None
-
+            
+                # 新增：回复功能配置
+                reply_choice = (await ainput("是否启用回复功能？(yes/no): ")).strip().lower() == 'yes'
+                if reply_choice:
+                    reply_enabled = True
+                    reply_texts_input = (await ainput("请输入回复词组，多个词组用逗号分隔: ")).strip()
+                    reply_texts = [s.strip() for s in reply_texts_input.split(',')] if reply_texts_input else []
+                    reply_delay_input = (await ainput("请输入回复延时范围（格式: min,max，单位秒）： ")).strip()
+                    try:
+                        reply_delay_min, reply_delay_max = map(float, reply_delay_input.split(','))
+                    except Exception as e:
+                        print("回复延时范围输入格式有误，默认设为0")
+                        reply_delay_min = 0
+                        reply_delay_max = 0
+                else:
+                    reply_enabled = False
+                    reply_texts = []
+                    reply_delay_min = 0
+                    reply_delay_max = 0
+            
                 for keyword in keywords:
                     cfg[keyword] = {
                         'chats': chat_ids,
@@ -851,10 +897,10 @@ exit               - 退出程序
                         'user_option': user_option,
                         'forward_targets': target_ids,
                         'log_file': log_file,
-                        'reply_enabled': False,
-                        'reply_texts': [],
-                        'reply_delay_min': 0,
-                        'reply_delay_max': 0,
+                        'reply_enabled': reply_enabled,
+                        'reply_texts': reply_texts,
+                        'reply_delay_min': reply_delay_min,
+                        'reply_delay_max': reply_delay_max,
                         'max_executions': max_executions,
                         'execution_count': 0,
                         'blocked_users': blocked_users,
@@ -868,6 +914,7 @@ exit               - 退出程序
                             cfg[keyword]['regex_send_delete'] = (await ainput("发送后是否删除消息？(yes/no): ")).strip().lower() == 'yes'
                             print(f"正则匹配结果将发送到ID: {cfg[keyword]['regex_send_target_id']}, 延时: {cfg[keyword]['regex_send_random_offset']}秒, 删除后: {'是' if cfg[keyword]['regex_send_delete'] else '否'}")
                     print(f"已添加关键词 '{keyword}' 的配置： {cfg[keyword]}")
+
 
             elif command == 'modifykeyword':
                 if current_account is None:
@@ -992,14 +1039,14 @@ exit               - 退出程序
                 print("\n=== 当前关键词配置 ===")
                 for k, v in cfg.items():
                     print(f"{k} : {v}")
-
+                    
             elif command == 'addext':
                 if current_account is None:
                     print("请先切换或添加账号")
                     continue
                 cfg = ACCOUNTS[current_account]["config"]["file_extension_config"]
                 extensions_input = (await ainput("请输入文件后缀（多个逗号分隔）： ")).strip().lower()
-                extensions = [ext.strip() if ext.startswith('.') else '.'+ext.strip() for ext in extensions_input.split(',')]
+                extensions = [ext.strip() if ext.startswith('.') else '.' + ext.strip() for ext in extensions_input.split(',')]
                 chat_ids_input = (await ainput("请输入监听对话ID（多个逗号分隔）： ")).strip()
                 chat_ids = [int(x.strip()) for x in chat_ids_input.split(',')]
                 print("请选择要监控用户其类型： 1. 用户ID(频道id与Bot id也可行)  2. 用户名  3. 昵称")
@@ -1034,6 +1081,29 @@ exit               - 退出程序
                     max_executions = int(execution_limit_input)
                 else:
                     max_executions = None
+                save_choice = (await ainput("是否保存匹配到的文件到本地？(yes/no): ")).strip().lower() == 'yes'
+                if save_choice:
+                    save_folder = (await ainput("请输入保存文件的本地文件夹路径: ")).strip()
+                    size_limit_choice = (await ainput("是否设置文件大小范围限制？(yes/no): ")).strip().lower() == 'yes'
+                    if size_limit_choice:
+                        min_size_input = (await ainput("请输入文件最小大小（MB）： ")).strip()
+                        max_size_input = (await ainput("请输入文件最大大小（MB）： ")).strip()
+                        try:
+                            min_size = float(min_size_input) if min_size_input else None
+                        except:
+                            min_size = None
+                        try:
+                            max_size = float(max_size_input) if max_size_input else None
+                        except:
+                            max_size = None
+                    else:
+                        min_size = None
+                        max_size = None
+                else:
+                    save_folder = None
+                    min_size = None
+                    max_size = None
+
                 for ext in extensions:
                     cfg[ext] = {
                         'chats': chat_ids,
@@ -1045,6 +1115,9 @@ exit               - 退出程序
                         'max_executions': max_executions,
                         'execution_count': 0,
                         'blocked_users': blocked_users,
+                        'save_folder': save_folder,
+                        'min_size': min_size,
+                        'max_size': max_size,
                     }
                     print(f"已添加文件后缀 '{ext}' 的配置： {cfg[ext]}")
 
@@ -1060,8 +1133,14 @@ exit               - 退出程序
                     config = cfg[ext]
                     print(f"当前配置：{config}")
                     print("请输入要修改的项（逗号分隔）：")
-                    print("1. 文件后缀  2. 监听对话ID  3. 自动转发  4. 邮件通知")
-                    print("5. 用户过滤  6. 执行次数限制  7. 屏蔽过滤")
+                    print("1. 文件后缀")
+                    print("2. 监听对话ID")
+                    print("3. 自动转发")
+                    print("4. 邮件通知")
+                    print("5. 用户过滤")
+                    print("6. 执行次数限制")
+                    print("7. 屏蔽过滤")
+                    print("8. 保存文件设置（包括保存路径及大小限制）")
                     options = (await ainput("请输入修改项: ")).strip().split(',')
                     options = [x.strip() for x in options]
                     if '1' in options:
@@ -1113,10 +1192,38 @@ exit               - 退出程序
                         else:
                             blocked_users = []
                         cfg[ext]['blocked_users'] = blocked_users
+                    if '8' in options:
+                        save_choice = (await ainput("是否启用保存文件到本地？(yes/no): ")).strip().lower() == 'yes'
+                        if save_choice:
+                            save_folder = (await ainput("请输入保存文件的本地文件夹路径: ")).strip()
+                            size_limit_choice = (await ainput("是否设置文件大小范围限制？(yes/no): ")).strip().lower() == 'yes'
+                            if size_limit_choice:
+                                min_size_input = (await ainput("请输入文件最小大小（MB）： ")).strip()
+                                max_size_input = (await ainput("请输入文件最大大小（MB）： ")).strip()
+                                try:
+                                    min_size = float(min_size_input) if min_size_input else None
+                                except:
+                                    min_size = None
+                                try:
+                                    max_size = float(max_size_input) if max_size_input else None
+                                except:
+                                    max_size = None
+                            else:
+                                min_size = None
+                                max_size = None
+                            cfg[ext]['save_folder'] = save_folder
+                            cfg[ext]['min_size'] = min_size
+                            cfg[ext]['max_size'] = max_size
+                            print(f"保存文件设置已更新：保存路径：{save_folder}, 最小大小：{min_size} MB, 最大大小：{max_size} MB")
+                        else:
+                            cfg[ext]['save_folder'] = None
+                            cfg[ext]['min_size'] = None
+                            cfg[ext]['max_size'] = None
+                            print("已关闭保存文件功能")
                     print(f"文件后缀配置更新为： {cfg[ext]}")
                 else:
                     print("未找到该文件后缀配置")
-
+                    
             elif command == 'removeext':
                 if current_account is None:
                     print("请先切换或添加账号")
