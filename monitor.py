@@ -546,15 +546,13 @@ async def message_handler(event, account_id):
         if event.message.buttons:
             for b_keyword, b_config in button_keyword_config.items():
                 if chat_id in b_config['chats']:
-                    if not is_not_blocked(b_config):
-                        continue
-                    if match_user(sender, set(b_config.get('users', [])), b_config.get('user_option')):
+                    if match_user(sender, b_config.get('users', set()), b_config.get('user_option')):
                         for row_i, row in enumerate(event.message.buttons):
                             for col_i, button in enumerate(row):
                                 if b_keyword in button.text.lower():
                                     await event.message.click(row_i, col_i)
+                                    logger.info(f"已点击对话 {chat_id} 中包含按钮关键词 '{b_keyword}' 的按钮: {button.text}")
                                     return
-
         if chat_id in image_button_monitor and event.message.buttons:
             image_path = None
             if event.message.photo or (event.message.document and 'image' in event.message.document.mime_type):
@@ -595,14 +593,19 @@ async def message_handler(event, account_id):
                             messages=messages
                         )
                         ai_answer = response.choices[0].message.content.strip()
+                        logger.info(f"AI模型返回的内容: {ai_answer}")
                         break
                     except Exception as e:
+                        logger.error(f"AI模型调用时发生错误(第{attempt}次): {e}")
                         if attempt < max_retries:
+                            logger.info("10秒后重试上传给AI模型...")
                             await asyncio.sleep(10)
                         else:
+                            logger.info("多次尝试仍失败，放弃上传给AI模型。")
                             try:
                                 if os.path.exists(image_path):
                                     os.remove(image_path)
+                                    logger.info(f"已删除图片文件：{image_path}")
                             except Exception as e:
                                 logger.error(f"删除图片文件时发生错误: {e}")
                             return
@@ -612,13 +615,14 @@ async def message_handler(event, account_id):
                     for col_i, button in enumerate(row):
                         if button.text.strip() == ai_answer:
                             await event.message.click(row_i, col_i)
+                            logger.info(f"已点击AI模型选择的按钮: {button.text}")
                             break
                 try:
                     if os.path.exists(image_path):
                         os.remove(image_path)
+                        logger.info(f"已删除图片文件：{image_path}")
                 except Exception as e:
                     logger.error(f"删除图片文件时发生错误: {e}")
-
     except Exception as e:
         logger.error(f"处理消息时出错：{repr(e)}")
 
