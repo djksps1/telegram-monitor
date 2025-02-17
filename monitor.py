@@ -164,7 +164,7 @@ async def add_account():
             await telegram_login(client)
         me = await client.get_me()
         own_user_id = me.id
-        account_id = phone  # 以手机号作为账号标识
+        account_id = phone  
         ACCOUNTS[account_id] = {
             "client": client,
             "own_user_id": own_user_id,
