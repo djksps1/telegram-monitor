@@ -271,7 +271,16 @@ async def import_all_configs():
                         cfg_item['execution_count'] = 0
                     if 'blocked_users' not in cfg_item:
                         cfg_item['blocked_users'] = []
+                    if 'reply_enabled' not in cfg_item:
+                        cfg_item['reply_enabled'] = False
+                    if 'reply_texts' not in cfg_item:
+                        cfg_item['reply_texts'] = []
+                    if 'reply_delay_min' not in cfg_item:
+                        cfg_item['reply_delay_min'] = 0
+                    if 'reply_delay_max' not in cfg_item:
+                        cfg_item['reply_delay_max'] = 0
                 config["keyword_config"] = keyword_cfg
+
                 ext_cfg = config.get("file_extension_config", {})
                 for key, cfg_item in ext_cfg.items():
                     if 'max_executions' not in cfg_item:
@@ -287,30 +296,53 @@ async def import_all_configs():
                     if 'max_size' not in cfg_item:
                         cfg_item['max_size'] = None
                 config["file_extension_config"] = ext_cfg
+
                 all_msg_cfg = config.get("all_messages_config", {})
-                for chat_id, cfg_item in all_msg_cfg.items():
+                new_all_msg_cfg = {}
+                for chat_id_key, cfg_item in all_msg_cfg.items():
+                    try:
+                        chat_id_int = int(chat_id_key)
+                    except Exception as e:
+                        chat_id_int = chat_id_key
                     if 'max_executions' not in cfg_item:
                         cfg_item['max_executions'] = None
                     if 'execution_count' not in cfg_item:
                         cfg_item['execution_count'] = 0
                     if 'blocked_users' not in cfg_item:
                         cfg_item['blocked_users'] = []
-                config["all_messages_config"] = all_msg_cfg
+                    new_all_msg_cfg[chat_id_int] = cfg_item
+                config["all_messages_config"] = new_all_msg_cfg
+
                 button_cfg = config.get("button_keyword_config", {})
                 for button_keyword, b_config in button_cfg.items():
-                    b_config['chats'] = set(b_config.get('chats', []))  
-                    b_config['users'] = set(b_config.get('users', []))  
+                    b_config['chats'] = set(b_config.get('chats', []))
+                    b_config['users'] = set(b_config.get('users', []))
                 config["button_keyword_config"] = button_cfg
-                
-                image_button_monitor = set(config.get("image_button_monitor", [])) 
+
+                image_button_monitor = set(config.get("image_button_monitor", []))
                 config["image_button_monitor"] = image_button_monitor
-                
+
                 scheduled_messages = config.get("scheduled_messages", [])
                 config["scheduled_messages"] = scheduled_messages
 
                 if account_id in ACCOUNTS:
                     ACCOUNTS[account_id]["config"] = config
                     imported += 1
+                    for sched in config.get("scheduled_messages", []):
+                        if not scheduler.get_job(sched["job_id"]):
+                            try:
+                                job = scheduler.add_job(
+                                    send_scheduled_message,
+                                    CronTrigger.from_crontab(sched['cron'], timezone=pytz.timezone('Asia/Shanghai')),
+                                    args=[sched['target_id'], sched['message'],
+                                          sched.get('random_offset', 0),
+                                          sched.get('delete_after_sending', False),
+                                          sched.get('account_id')],
+                                    id=sched["job_id"]
+                                )
+                                logger.info(f"重新加载定时任务，Job ID: {job.id}")
+                            except Exception as e:
+                                logger.error(f"添加定时任务时出错: {e}")
                 else:
                     print(f"当前系统中不存在账号 {account_id}，请先添加该账号")
             else:
@@ -319,7 +351,6 @@ async def import_all_configs():
     except Exception as e:
         logger.error(f"导入配置时发生错误：{repr(e)}")
         print(f"导入配置时发生错误：{repr(e)}")
-
         
 async def message_handler(event, account_id):
     account = ACCOUNTS.get(account_id)
@@ -1469,11 +1500,32 @@ exit               - 退出程序
                 if current_account is None:
                     print("请先切换或添加账号")
                     continue
-                cfg_list = ACCOUNTS[current_account]["config"]["image_button_monitor"]
+                cfg = ACCOUNTS[current_account]["config"]["image_button_monitor"]
                 chat_id = int((await ainput("请输入要监听的对话ID: ")).strip())
-                if chat_id not in cfg_list:
-                    cfg_list.append(chat_id)
+                if isinstance(cfg, set):
+                    if chat_id not in cfg:
+                        cfg.add(chat_id)
+                else:
+                    if chat_id not in cfg:
+                        cfg.append(chat_id)
                 print(f"已添加图片+按钮监听对话ID: {chat_id}")
+
+            elif command == 'modifylistener':
+                if current_account is None:
+                    print("请先切换或添加账号")
+                    continue
+                cfg_list = ACCOUNTS[current_account]["config"]["image_button_monitor"]
+                print(f"当前图片+按钮监听对话ID列表: {list(cfg_list)}")
+                new_list_input = (await ainput("请输入新的监听对话ID列表（多个逗号分隔）： ")).strip()
+                if new_list_input:
+                    try:
+                        new_list = [int(x.strip()) for x in new_list_input.split(',')]
+                        ACCOUNTS[current_account]["config"]["image_button_monitor"] = new_list
+                        print(f"图片+按钮监听对话ID已更新为: {new_list}")
+                    except Exception as e:
+                        print(f"输入格式有误: {e}")
+                else:
+                    print("未做任何修改")
             
             elif command == 'removelistener':
                 if current_account is None:
