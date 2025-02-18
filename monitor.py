@@ -84,21 +84,26 @@ def match_user(sender, user_set, user_option):
         return True
     if not sender:
         return False
-    sender_id = sender.id
-    sender_username = sender.username.lower() if hasattr(sender, 'username') and sender.username else None
-    if hasattr(sender, 'first_name'):
-        sender_first_name = sender.first_name or ''
-        sender_last_name = sender.last_name or ''
-    else:
-        sender_first_name = getattr(sender, 'title', '')  # 频道使用 title
-        sender_last_name = ''
-    sender_full_name = f"{sender_first_name} {sender_last_name}".strip()
     if user_option == '1':
-        return sender_id in user_set
+        sender_id = sender.id
+        sender_id_str = str(sender_id)
+        if sender_id_str.startswith("-100"):
+            short_id = sender_id_str[4:]
+        else:
+            short_id = sender_id_str
+        user_set_str = {str(x) for x in user_set}
+        if sender_id_str in user_set_str or short_id in user_set_str:
+            return True
+        return False
     elif user_option == '2':
-        return sender_username in user_set
+        sender_username = getattr(sender, 'username', '').lower()
+        return sender_username in {u.lower() for u in user_set}
     elif user_option == '3':
-        return sender_full_name in user_set
+        if hasattr(sender, 'first_name'):
+            sender_full = f"{sender.first_name or ''} {sender.last_name or ''}".strip()
+        else:
+            sender_full = getattr(sender, 'title', '').strip()
+        return sender_full in user_set
     else:
         return True
         
@@ -384,8 +389,26 @@ async def message_handler(event, account_id):
         message_text_lower = message_text.lower().strip()
         sender = await event.get_sender()
         if not sender:
-            return
-            
+            post_author = event.message.post_author 
+            if post_author:
+                class PseudoSender:
+                    def __init__(self, name, channel_id):
+                        self.id = channel_id      
+                        self.username = None
+                        self.first_name = name
+                        self.last_name = ""
+                        self.bot = False
+                sender = PseudoSender(post_author, event.chat_id)
+            else:
+                class PseudoSender:
+                    def __init__(self, channel_id):
+                        self.id = channel_id
+                        self.username = ""
+                        self.first_name = "未知"
+                        self.last_name = ""
+                        self.bot = False
+                sender = PseudoSender(event.chat_id)
+
         sender_id = sender.id
         username = getattr(sender, 'username', '')
         if hasattr(sender, 'first_name'):
