@@ -222,6 +222,16 @@ def ensure_keyword_config_defaults(keyword_cfg):
         keyword_cfg['reply_delay_max'] = 0
     return keyword_cfg
     
+def convert_sets_to_lists(obj):
+    if isinstance(obj, dict):
+        return {k: convert_sets_to_lists(v) for k, v in obj.items()}
+    elif isinstance(obj, set):
+        return list(obj)
+    elif isinstance(obj, list):
+        return [convert_sets_to_lists(item) for item in obj]
+    else:
+        return obj
+
 async def export_all_configs():
     global ACCOUNTS
     filepath = (await ainput("请输入导出所有账号配置文件的路径: ")).strip()
@@ -231,7 +241,7 @@ async def export_all_configs():
     for account_id, info in ACCOUNTS.items():
         all_configs[account_id] = {
             "phone": info["phone"],
-            "config": info["config"]
+            "config": convert_sets_to_lists(info["config"])
         }
     try:
         with open(filepath, "w", encoding="utf-8") as f:
