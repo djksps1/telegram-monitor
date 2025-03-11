@@ -2,3 +2,4 @@ telethon
 apscheduler
 pytz
 openai
+socks
