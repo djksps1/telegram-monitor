@@ -338,8 +338,29 @@ async def import_all_configs():
                 config["image_button_monitor"] = image_button_monitor
 
                 scheduled_messages = config.get("scheduled_messages", [])
+                for sched in scheduled_messages:
+                    if "execution_count" not in sched:
+                        sched["execution_count"] = 0
+                    if "max_executions" not in sched:
+                        sched["max_executions"] = None
                 config["scheduled_messages"] = scheduled_messages
 
+                for sched in scheduled_messages:
+                    if not scheduler.get_job(sched["job_id"]):
+                        try:
+                            job = scheduler.add_job(
+                                send_scheduled_message_wrapper,
+                                CronTrigger.from_crontab(sched['cron'], timezone=pytz.timezone('Asia/Shanghai')),
+                                args=[sched["job_id"], sched['target_id'], sched['message'],
+                                      sched.get('random_offset', 0),
+                                      sched.get('delete_after_sending', False),
+                                      sched.get('account_id')],
+                                id=sched["job_id"]
+                            )
+                            logger.info(f"重新加载定时任务，Job ID: {job.id}")
+                        except Exception as e:
+                            logger.error(f"添加定时任务时出错: {e}")
+                            
                 if account_id in ACCOUNTS:
                     ACCOUNTS[account_id]["config"] = config
                     imported += 1
@@ -732,14 +753,17 @@ async def auto_forward_file_message(event, file_extension, account_id):
 
 def schedule_message(target_id, message, cron_expression, random_offset=0, delete_after_sending=False, account_id=None):
     job = scheduler.add_job(
-        send_scheduled_message,
+        send_scheduled_message_wrapper,
         CronTrigger.from_crontab(cron_expression, timezone=pytz.timezone('Asia/Shanghai')),
-        args=[target_id, message, random_offset, delete_after_sending, account_id]
+        args=[None, target_id, message, random_offset, delete_after_sending, account_id]
     )
+    job_id = job.id
+    job.modify(args=[job_id, target_id, message, random_offset, delete_after_sending, account_id])
     logger.info(f"已添加定时消息，Cron表达式: {cron_expression}，目标ID: {target_id}，账号: {account_id}")
     return job
 
-async def send_scheduled_message(target_id, message, random_offset=0, delete_after_sending=False, account_id=None):
+
+async def send_scheduled_message(target_id, message, random_offset=0, delete_after_sending=False, account_id=None, job_id=None):
     try:
         if random_offset > 0:
             delay = random.uniform(0, random_offset)
@@ -750,15 +774,40 @@ async def send_scheduled_message(target_id, message, random_offset=0, delete_aft
         else:
             logger.error("send_scheduled_message 未指定有效账号")
             return
-        sent_message = await client_instance.send_message(target_id, message)
+
+        await client_instance.get_dialogs()
+
+        try:
+            entity = await client_instance.get_entity(target_id)
+        except Exception as e:
+            logger.error(f"获取目标实体出错: {e}")
+            return
+
+        sent_message = await client_instance.send_message(entity, message)
         logger.info(f"已发送定时消息到ID: {target_id}，账号: {account_id}")
         if delete_after_sending:
             await asyncio.sleep(5)
-            await client_instance.delete_messages(target_id, sent_message.id)
+            await client_instance.delete_messages(entity, sent_message.id)
             logger.info(f"已删除发送的定时消息，消息ID: {sent_message.id}")
+        if job_id:
+            for acc in ACCOUNTS.values():
+                sched_list = acc["config"].get("scheduled_messages", [])
+                for i in range(len(sched_list)):
+                    if sched_list[i].get("job_id") == job_id:
+                        sched_list[i]["execution_count"] = sched_list[i].get("execution_count", 0) + 1
+                        logger.info(f"更新定时消息 {job_id} 执行次数为 {sched_list[i]['execution_count']}")
+                        if (sched_list[i].get("max_executions") is not None and
+                            sched_list[i]["execution_count"] >= sched_list[i]["max_executions"]):
+                            scheduler.remove_job(job_id)
+                            logger.info(f"定时消息配置 '{job_id}' 达到最大执行次数，已删除")
+                            del sched_list[i]
+                        break
     except Exception as e:
         error_message = repr(e)
         logger.error(f"发送定时消息时发生错误：{error_message}")
+
+async def send_scheduled_message_wrapper(job_id, target_id, message, random_offset, delete_after_sending, account_id):
+    await send_scheduled_message(target_id, message, random_offset, delete_after_sending, account_id, job_id)
 
 async def handle_commands():
     global monitor_active, ACCOUNTS, current_account
