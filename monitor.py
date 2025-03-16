@@ -20,6 +20,8 @@ import base64
 import json
 from openai import OpenAI
 import socks
+import csv
+from telethon import functions, types
 
 # 配置One/New API
 ONEAPI_KEY = "你的 API 令牌"  # 替换为实际的 API 令牌
@@ -34,8 +36,8 @@ EMAIL_PASSWORD = "您的邮箱授权码"      # 邮箱授权码或密码
 RECIPIENT_EMAIL = "收件人邮箱@example.com"  # 收件人邮箱
 
 ACCOUNTS = {}
-BLOCKED_BOTS = set()  
-current_account = None  
+BLOCKED_BOTS = set()
+current_account = None
 processed_messages = set()
 
 
@@ -54,6 +56,7 @@ def setup_logger():
 
 
 logger = setup_logger()
+
 
 async def ainput(prompt: str = '') -> str:
     loop = asyncio.get_event_loop()
@@ -81,13 +84,106 @@ def send_email(message_text):
         except:
             pass
 
+async def export_channels_links(account_id=None, export_format='json'):
+
+    logger.info(f"开始导出频道群组链接，格式：{export_format}")
+
+    result = {}
+    export_accounts = []
+
+    if account_id:
+        if account_id in ACCOUNTS:
+            export_accounts.append(account_id)
+        else:
+            logger.error(f"账号 {account_id} 不存在")
+            return
+    else:
+        export_accounts = list(ACCOUNTS.keys())
+
+    if not export_accounts:
+        logger.warning("没有可导出的账号")
+        return
+
+    for acc_id in export_accounts:
+        try:
+            client = ACCOUNTS[acc_id]["client"]
+
+            if not client.is_connected():
+                await client.connect()
+
+            logger.info(f"获取账号 {acc_id} 的对话列表")
+            channels_groups = []
+
+            async for dialog in client.iter_dialogs():
+                entity = dialog.entity
+
+                if (isinstance(entity, types.Channel) or isinstance(entity, types.Chat)):
+                    chat_info = {
+                        "id": entity.id,
+                        "title": entity.title,
+                        "type": "channel" if isinstance(entity, types.Channel) and entity.broadcast else "group",
+                    }
+
+                    if hasattr(entity, 'username') and entity.username:
+                        if isinstance(entity, types.Channel):
+                            if entity.broadcast:
+                                chat_info["link"] = f"https://t.me/{entity.username}"
+                            else:
+                                chat_info["link"] = f"https://t.me/{entity.username}"
+                        else:
+                            chat_info["link"] = f"https://t.me/{entity.username}"
+                    else:
+                        try:
+                            if isinstance(entity, types.Channel):
+                                full_entity = await client(functions.channels.GetFullChannelRequest(entity))
+                                if hasattr(full_entity, 'full_chat') and hasattr(full_entity.full_chat,
+                                                                                 'exported_invite'):
+                                    chat_info["link"] = full_entity.full_chat.exported_invite.link
+                                else:
+                                    chat_info["link"] = "私有频道/群组，无法获取链接"
+                            else:
+                                chat_info["link"] = "私有频道/群组，无法获取链接"
+                        except Exception as e:
+                            logger.debug(f"获取频道 {entity.title} 邀请链接失败: {str(e)}")
+                            chat_info["link"] = "私有频道/群组，无法获取链接"
+
+                    channels_groups.append(chat_info)
+
+            result[acc_id] = channels_groups
+            logger.info(f"账号 {acc_id} 共有 {len(channels_groups)} 个频道/群组")
+
+        except Exception as e:
+            logger.error(f"导出账号 {acc_id} 的频道群组链接时出错: {str(e)}")
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    if export_format.lower() == 'json':
+        filename = f"channel_links_{timestamp}.json"
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False, indent=4)
+    else:  # csv format
+        filename = f"channel_links_{timestamp}.csv"
+        with open(filename, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['账号ID', '频道/群组ID', '名称', '类型', '链接'])
+
+            for acc_id, channels in result.items():
+                for channel in channels:
+                    writer.writerow([
+                        acc_id,
+                        channel['id'],
+                        channel['title'],
+                        channel['type'],
+                        channel['link']
+                    ])
+
+    logger.info(f"频道群组链接已导出到文件: {filename}")
+    return filename
 def match_user(sender, user_set, user_option):
     if not user_set:
         return True
     if not sender:
         return False
     if user_option == '1':
-        # sender.id 可能为 -1002301846702
         sender_id = sender.id
         sender_id_str = str(sender_id)
         if sender_id_str.startswith("-100"):
@@ -110,6 +206,7 @@ def match_user(sender, user_set, user_option):
     else:
         return True
 
+
 def default_config():
     return {
         "keyword_config": {},
@@ -127,10 +224,12 @@ def set_account_monitor_active(account_id, status: bool):
         ACCOUNTS[account_id]['monitor_active'] = status
         logger.info(f"账号 {account_id} 的监控状态已设置为: {'开启' if status else '关闭'}")
 
+
 def set_monitor_active(status: bool):
     for acc in ACCOUNTS.values():
         acc['monitor_active'] = status
     logger.info(f"全局监控状态已设置为: {'开启' if status else '关闭'}")
+
 
 async def add_account():
     global ACCOUNTS, current_account
@@ -173,7 +272,7 @@ async def add_account():
             await telegram_login(client)
         me = await client.get_me()
         own_user_id = me.id
-        account_id = phone 
+        account_id = phone
         ACCOUNTS[account_id] = {
             "client": client,
             "own_user_id": own_user_id,
@@ -240,6 +339,7 @@ def convert_sets_to_lists(obj):
         return [convert_sets_to_lists(item) for item in obj]
     else:
         return obj
+
 
 async def export_all_configs():
     global ACCOUNTS
@@ -421,6 +521,7 @@ async def import_all_configs():
         logger.error(f"导入配置时发生错误：{repr(e)}")
         print(f"导入配置时发生错误：{repr(e)}")
 
+
 async def get_ai_answer(ai_messages, max_retries=2, retry_delay=10):
     attempt = 0
     while attempt < max_retries:
@@ -497,7 +598,7 @@ async def message_handler(event, account_id):
         message_text_lower = message_text.lower().strip()
         sender = await event.get_sender()
         if not sender:
-            post_author = event.message.post_author 
+            post_author = event.message.post_author
             if post_author:
                 class PseudoSender:
                     def __init__(self, name, channel_id):
@@ -722,8 +823,10 @@ async def message_handler(event, account_id):
                     if match_user(sender, b_config.get('users', set()), b_config.get('user_option')):
                         if b_config.get('mode') == "ai":
                             buttons_text_list = [button.text.strip() for row in event.message.buttons for button in row]
-                            ai_prompt = b_config.get('ai_prompt', "请根据下面的消息内容和按钮选项，选择最合适的按钮，返回该按钮包含的关键字。")
-                            full_prompt = f"{ai_prompt}\n消息内容: {message_text}\n按钮选项:\n" + "\n".join(buttons_text_list)
+                            ai_prompt = b_config.get('ai_prompt',
+                                                     "请根据下面的消息内容和按钮选项，选择最合适的按钮，返回该按钮包含的关键字。")
+                            full_prompt = f"{ai_prompt}\n消息内容: {message_text}\n按钮选项:\n" + "\n".join(
+                                buttons_text_list)
                             ai_messages = [{"role": "user", "content": full_prompt}]
                             ai_answer = await get_ai_answer(ai_messages)
                             if ai_answer:
@@ -741,7 +844,8 @@ async def message_handler(event, account_id):
                                 for col_i, button in enumerate(row):
                                     if manual_keyword in button.text.lower():
                                         await event.message.click(row_i, col_i)
-                                        logger.info(f"已点击对话 {chat_id} 中包含按钮关键词 '{manual_keyword}' 的按钮: {button.text}")
+                                        logger.info(
+                                            f"已点击对话 {chat_id} 中包含按钮关键词 '{manual_keyword}' 的按钮: {button.text}")
                                         # 更新执行次数
                                         if b_config.get('max_executions') is not None:
                                             b_config['execution_count'] = b_config.get('execution_count', 0) + 1
@@ -763,9 +867,11 @@ async def message_handler(event, account_id):
                 options = [button.text.strip() for row in event.message.buttons for button in row]
                 prompt_options = "\n".join(options)
                 ai_prompt = f"请根据图中的内容从下列选项中选出符合图片的选项，你的回答只需要包含选项的内容，不用包含其他内容：\n{prompt_options}"
+
                 def encode_image(image_path):
                     with open(image_path, "rb") as image_file:
                         return base64.b64encode(image_file.read()).decode("utf-8")
+
                 base64_image = encode_image(image_path)
                 ai_messages = [
                     {
@@ -784,7 +890,8 @@ async def message_handler(event, account_id):
                     for idx, item in enumerate(account["config"]["image_button_monitor"]):
                         if isinstance(item, dict) and item.get("chat_id") == chat_id:
                             item["execution_count"] = item.get("execution_count", 0) + 1
-                            if item.get("max_executions") is not None and item["execution_count"] >= item["max_executions"]:
+                            if item.get("max_executions") is not None and item["execution_count"] >= item[
+                                "max_executions"]:
                                 account["config"]["image_button_monitor"].pop(idx)
                                 logger.info(f"图片+按钮配置 for chat {chat_id} 达到最大执行次数，已删除")
                             break
@@ -853,7 +960,8 @@ def schedule_message(target_id, message, cron_expression, random_offset=0, delet
     return job
 
 
-async def send_scheduled_message(target_id, message, random_offset=0, delete_after_sending=False, account_id=None, job_id=None):
+async def send_scheduled_message(target_id, message, random_offset=0, delete_after_sending=False, account_id=None,
+                                 job_id=None):
     try:
         if random_offset > 0:
             delay = random.uniform(0, random_offset)
@@ -888,7 +996,7 @@ async def send_scheduled_message(target_id, message, random_offset=0, delete_aft
                         sched_list[i]["execution_count"] = sched_list[i].get("execution_count", 0) + 1
                         logger.info(f"更新定时消息 {job_id} 执行次数为 {sched_list[i]['execution_count']}")
                         if (sched_list[i].get("max_executions") is not None and
-                            sched_list[i]["execution_count"] >= sched_list[i]["max_executions"]):
+                                sched_list[i]["execution_count"] >= sched_list[i]["max_executions"]):
                             scheduler.remove_job(job_id)
                             logger.info(f"定时消息配置 '{job_id}' 达到最大执行次数，已删除")
                             del sched_list[i]
@@ -897,8 +1005,10 @@ async def send_scheduled_message(target_id, message, random_offset=0, delete_aft
         error_message = repr(e)
         logger.error(f"发送定时消息时发生错误：{error_message}")
 
+
 async def send_scheduled_message_wrapper(job_id, target_id, message, random_offset, delete_after_sending, account_id):
     await send_scheduled_message(target_id, message, random_offset, delete_after_sending, account_id, job_id)
+
 
 async def handle_commands():
     global monitor_active, ACCOUNTS, current_account
@@ -938,6 +1048,9 @@ schedule           - 添加定时消息配置
 modifyschedule     - 修改定时消息配置
 removeschedule     - 删除定时消息配置
 showschedule       - 显示当前账号所有定时消息配置
+export             - 导出所有配置
+import             - 导入所有配置
+exportlinks        - 导出频道群组链接
 start              - 开始监控
 stop               - 停止监控
 exit               - 退出程序
@@ -1470,7 +1583,7 @@ exit               - 退出程序
                 print("\n=== 当前文件后缀配置 ===")
                 for k, v in cfg.items():
                     print(f"{k} : {v}")
-                    
+
             elif command == 'addall':
                 if current_account is None:
                     print("请先切换或添加账号")
@@ -1605,7 +1718,7 @@ exit               - 退出程序
                 print("\n=== 当前全量监控配置 ===")
                 for k, v in cfg.items():
                     print(f"{k} : {v}")
-                    
+
             elif command == 'addbutton':
                 if current_account is None:
                     print("请先切换或添加账号")
@@ -1634,10 +1747,10 @@ exit               - 退出程序
                     ai_prompt = (await ainput("请输入 AI 提示语（可留空则使用默认提示）： ")).strip()
                     if not ai_prompt:
                         ai_prompt = "请根据下面的消息内容和按钮选项，选择最合适的按钮，返回该按钮包含的关键字。"
-                    button_keyword = ""  
+                    button_keyword = ""
                 else:
                     mode = "manual"
-                    button_keyword = b_identifier  
+                    button_keyword = b_identifier
                     ai_prompt = ""
                 max_executions_input = (await ainput("请输入最大执行次数（正整数），直接回车表示不设置： ")).strip()
                 if max_executions_input.isdigit():
@@ -1665,7 +1778,8 @@ exit               - 退出程序
                 if identifier in cfg:
                     config = cfg[identifier]
                     print(f"当前配置：{config}")
-                    print("请输入要修改的项（逗号分隔）： 1. 配置标识  2. 监听对话ID  3. 用户过滤  4. 模式选择  5. 最大执行次数")
+                    print(
+                        "请输入要修改的项（逗号分隔）： 1. 配置标识  2. 监听对话ID  3. 用户过滤  4. 模式选择  5. 最大执行次数")
                     options = (await ainput("请输入修改项: ")).strip().split(',')
                     options = [x.strip() for x in options]
                     if '1' in options:
@@ -1686,7 +1800,8 @@ exit               - 退出程序
                         users_input = (await ainput("请输入对应用户标识（多个逗号分隔）： ")).strip()
                         if users_input:
                             if user_option == '1':
-                                config['users'] = [int(x.strip()) for x in users_input.split(',') if x.strip().isdigit()]
+                                config['users'] = [int(x.strip()) for x in users_input.split(',') if
+                                                   x.strip().isdigit()]
                             else:
                                 config['users'] = [x.strip() for x in users_input.split(',')]
                         else:
@@ -1805,7 +1920,8 @@ exit               - 退出程序
                     continue
                 print("当前图片+按钮监听配置如下:")
                 for i, item in enumerate(cfg, start=1):
-                    print(f"{i}. 对话ID: {item.get('chat_id')}, 最大执行次数: {item.get('max_executions')}, 已执行次数: {item.get('execution_count')}")
+                    print(
+                        f"{i}. 对话ID: {item.get('chat_id')}, 最大执行次数: {item.get('max_executions')}, 已执行次数: {item.get('execution_count')}")
                 choice = (await ainput("请输入要修改的配置序号: ")).strip()
                 if not choice.isdigit():
                     print("请输入有效的序号")
@@ -1959,6 +2075,43 @@ exit               - 退出程序
                 for s in sched_list:
                     print(s)
 
+            elif command == 'export':
+                await export_all_configs()
+
+            elif command == 'import':
+                await import_all_configs()
+
+            elif command == 'exportlinks':
+                all_accounts = list(ACCOUNTS.keys())
+
+                if not all_accounts:
+                    print("没有可用的账号")
+                    continue
+
+                print("\n==== 导出频道群组链接 ====")
+                print("0. 导出所有账号")
+                for i, acc_id in enumerate(all_accounts, 1):
+                    print(f"{i}. 账号 {acc_id}")
+
+                acc_choice = await ainput("请选择账号 (0-所有账号): ")
+                try:
+                    acc_idx = int(acc_choice)
+                    selected_account = None
+                    if acc_idx > 0 and acc_idx <= len(all_accounts):
+                        selected_account = all_accounts[acc_idx - 1]
+                except ValueError:
+                    print("请输入有效的数字")
+                    continue
+
+                format_choice = await ainput("请选择导出格式 (1-JSON, 2-CSV): ")
+                export_format = 'json'
+                if format_choice == '2':
+                    export_format = 'csv'
+
+                filename = await export_channels_links(selected_account, export_format)
+                if filename:
+                    print(f"链接已导出到文件: {filename}")
+
             elif command == 'start':
                 scope = (await ainput("请选择监控开关范围: 1. 当前账号  2. 全局: ")).strip()
                 timing = (await ainput("请输入定时开机设置（输入延迟分钟或Cron表达式，直接回车则立即开机）： ")).strip()
@@ -2046,6 +2199,7 @@ exit               - 退出程序
             logger.error(f"执行命令时出错: {repr(e)}")
             print(f"执行命令时出错: {repr(e)}")
 
+
 async def telegram_login(client):
     logger.info('开始Telegram登录流程...')
     phone = (await ainput('请输入您的Telegram手机号 (格式如: +8613800138000): ')).strip()
@@ -2083,4 +2237,3 @@ if __name__ == '__main__':
     except Exception as e:
         error_message = repr(e)
         logger.error(f'程序发生错误：{error_message}')
-
