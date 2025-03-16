@@ -52,7 +52,10 @@ In the latest version, the program introduces and improves the following main fe
 
 - **New Feature: Run a Specified Number of Times**  
   All monitoring configurations now support specifying the number of runs. After the specified number of runs, the program will automatically delete the configuration.
-
+  
+- **New Account Channel Link Export**
+  Export the links of channels and group chats that the account has joined into JSON and CSV formats.
+  
 ## Environment Requirements
 
 - Python 3.7 or higher  
@@ -137,7 +140,7 @@ After configuration, enter the `start` command to begin monitoring messages.
  
   - `addbutton` / `modifybutton` / `removebutton` / `showbuttons`: Manage button keyword monitoring
  
-  - `addimagelistener` / `removeimagelistener` / `showimagelistener`: Manage image + button listening conversation IDs
+  - `addistener` / `removelistener` / `showlistener`: Manage image + button listening conversation IDs
  
 - **Scheduled Task Management**  
   - `schedule` / `modifyschedule` / `removeschedule` / `showschedule`: Manage scheduled message tasks (supports random delays and automatic deletion)
@@ -146,6 +149,9 @@ After configuration, enter the `start` command to begin monitoring messages.
   - `start` / `stop`: Start or stop monitoring
  
   - `exit`: Exit the program
+
+- **Channel Group Chat Link Export**
+  - `exportlinks`: Export channel and group chat links in JSON or CSV format
 
 
 ## Notes 
