@@ -52,7 +52,10 @@
 
 - **新增运行指定次数**
   所有监控配置新增可指定运行次数功能，运行指定次数后配置会自动将配置删除
-
+  
+- **新增账号频道链接导出**
+  将账号所加入的频道和群聊的链接导出为json格式和csv格式
+- 
 ## 环境要求
 
 - Python 3.7 及以上版本  
@@ -138,13 +141,16 @@ python monitor.py
  
   - `addbutton` / `modifybutton` / `removebutton` / `showbuttons`：管理按钮关键词监控
  
-  - `addimagelistener` / `removeimagelistener` / `showimagelistener`：管理图片+按钮监听对话ID
+  - `addlistener` / `removelistener` / `showlistener`：管理图片+按钮监听对话ID
  
 - **定时任务管理**  
   - `schedule` / `modifyschedule` / `removeschedule` / `showschedule`：管理定时消息任务（支持随机延时及自动删除）
  
 - **监控控制**  
   - `start` / `stop`：启动或停止监控
+  - 
+- **频道群聊链接导出**
+  - `exportlinks` : 频道群聊链接以json或csv格式导出
  
   - `exit`：退出程序
 
