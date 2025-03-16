@@ -69,14 +69,14 @@ In the latest version, the program introduces and improves the following main fe
 1. Clone or download the project code:
    ```bash
    git clone https://github.com/djksps1/telegram-monitor.git
-```
+
  
 1. Install dependencies:
 
 
-```bash
-pip install -r requirements.txt
-```
+  ```bash
+  pip install -r requirements.txt
+
  
 2. Obtain Telegram API credentials (`api_id` and `api_hash`).
  
