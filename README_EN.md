@@ -71,18 +71,16 @@ In the latest version, the program introduces and improves the following main fe
    git clone https://github.com/djksps1/telegram-monitor.git
 
  
-1. Install dependencies:
-
-
-  ```bash
-  pip install -r requirements.txt
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
 
  
-2. Obtain Telegram API credentials (`api_id` and `api_hash`).
+3. Obtain Telegram API credentials (`api_id` and `api_hash`).
  
-3. Configure One/NEW API's `api_key` and `api_base_url` for AI model services.
+4. Configure One/NEW API's `api_key` and `api_base_url` for AI model services.
  
-4. Configure SMTP email information (if email notifications are needed).
+5. Configure SMTP email information (if email notifications are needed).
 
 ## Usage Instructions 
  
