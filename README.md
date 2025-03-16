@@ -149,10 +149,11 @@ python monitor.py
 - **监控控制**  
   - `start` / `stop`：启动或停止监控
   - 
-- **频道群聊链接导出**
-  - `exportlinks` : 频道群聊链接以json或csv格式导出
  
   - `exit`：退出程序
+ 
+ - **频道群聊链接导出**
+  - `exportlinks` : 频道群聊链接以json或csv格式导出
 
 ## 注意事项 
  
