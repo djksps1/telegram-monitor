@@ -1,189 +1,336 @@
-# Telegram 消息监控程序
+# TG监控系统 📱
 
-[English](./README_EN.md)
+一个功能强大的Telegram消息监控和自动化系统，支持多账号管理、智能AI分析、自动回复等功能。
 
-## 项目简介
+## ✨ 主要功能
 
-本项目是一个基于 Python 的 Telegram 消息监控程序，利用 [Telethon](https://github.com/LonamiWebs/Telethon) 库与 Telegram API 进行交互。  
-在最新版本中，程序在原有功能基础上新增并改进了以下主要特性：
+### 🎯 **监控功能**
+- **关键词监控** - 支持精确匹配、包含匹配、正则表达式匹配
+- **文件监控** - 监控指定类型的文件，支持大小过滤和自动保存
+- **AI监控** - 基于OpenAI的智能消息分析和判断
+- **图片+按钮监控** - AI分析图片内容并自动点击对应按钮
+- **全量消息监控** - 监控所有消息（支持聊天过滤）
+- **按钮监控** - 手动或AI模式的按钮点击
 
-- **消息监控**  
-  程序可监听指定对话中的消息，支持关键词匹配、正则表达式匹配以及文件后缀名匹配。  
-  当匹配成功时，程序可以自动转发消息、发送邮件通知或将匹配结果记录到本地文件。  
-  此外，新增了**回复功能**：  
-  当检测到设定关键词时，可根据用户配置的回复词组，从中随机选择一条作为回复内容，在同一对话中直接回复该消息。  
-  用户还可设置回复前的随机延时（在指定的时间范围内），使回复更自然。
-  
-- **文件后缀名监控**  
-  针对特定文件后缀（如 `.pdf`、`.docx` 等）的消息自动进行处理，支持自动转发与邮件通知。  
-  同时新增了用户过滤功能，允许基于用户 ID、用户名或昵称过滤消息。
-  新增了文件保存功能，可保存到本地指定文件夹，可指定保存文件的范围
+### 🤖 **AI集成**
+- **OpenAI支持** - 集成GPT模型进行智能分析
+- **图片识别** - 支持图片内容分析和按钮选择
+- **动态回复** - AI根据消息内容生成个性化回复
 
-- **全量监控与用户过滤**  
-  对指定频道、群组或对话进行全量监控，并支持基于用户 ID、用户名或昵称进行过滤，  
-  仅处理符合条件的消息，避免无关日志输出。  
-  此外，还支持将匹配的消息保存到本地文件。
+### 📧 **通知和转发**
+- **邮件通知** - 支持SMTP邮件提醒
+- **自动转发** - 普通转发和增强转发（下载重发）
+- **智能过滤** - 基于用户、聊天、Bot等条件过滤
 
-- **定时消息**  
-  通过 Cron 表达式配置定时消息任务，支持设置随机延时以及发送后自动删除消息。  
-  同时，新增了定时开关机功能，可以指定时间开关机和支持 Cron 表达式。
+### ⚡ **自动化**
+- **定时消息** - 支持Cron表达式的定时发送
+- **自动回复** - 可配置延迟的智能回复
+- **执行限制** - 监控器执行次数限制（暂停+重置机制）
 
-- **按钮与图片处理**  
-  针对带有 Inline 按钮和图片的消息，程序会自动调用 AI 模型识别图片内容，  
-  并根据 AI 的反馈自动选择并点击对应按钮。  
-  若 AI 模型调用失败，程序会重试（最多一次），若仍失败则放弃处理并删除本地图片。
+### 🌐 **Web管理界面**
+- **现代化界面** - 基于FastAPI的响应式Web界面
+- **配置向导** - 图形化配置，无需编写代码
+- **实时监控** - 查看监控状态、日志、统计信息
+- **配置管理** - 导入/导出配置，批量管理
 
-- **账号管理（数字序号管理）**  
-  账号管理现已优化：  
-  - 系统按账号添加顺序为每个账号分配一个数字序号（从 1 开始，添加顺序越早序号越小）。  
-  - 在显示账号列表时，将同时展示账号的序号与手机号；  
-  - 切换账号时，用户只需输入对应的序号即可完成切换，操作更简便直观。
+## 📸 界面预览
 
-- **配置管理**  
-  - **一键导出所有账号配置**：将所有已登录账号的配置信息（包括关键词、文件后缀、全量监控、按钮监控、图片监听和定时任务配置）导出到一个 JSON 文件，文件中以账号标识（手机号）作为 key。  
-  - **选择性导入配置**：支持根据导出文件中保存的账号标识，为当前已登录的账号导入配置，且新增的回复功能配置项（回复开关、回复词组、回复延时范围）也会被导入，不足项自动补充默认值。
+### 登录界面
+![登录界面](demo/login.png)
 
-- **代理支持**  
-  支持用户配置代理（socks5、socks4 或 HTTP），方便在受限网络环境下连接 Telegram。
+### 仪表板
+![仪表板](demo/dashboard.png)
 
-- **日志记录**  
-  程序通过日志文件记录关键事件、错误信息及匹配处理过程。  
-  改进后的日志输出仅记录实际匹配并处理的事件，避免产生冗余日志，使日志内容更加清晰。
+### 监控器管理
+![监控器管理](demo/monitors.png)
 
-- **新增运行指定次数**
-  所有监控配置新增可指定运行次数功能，运行指定次数后配置会自动将配置删除
-  
-- **新增账号频道链接导出**
-  将账号所加入的频道和群聊的链接导出为json格式和csv格式
-  
-## 环境要求
+## 🚀 快速开始
 
-- Python 3.7 及以上版本  
-- 依赖库：Telethon、openai、pytz、apscheduler、PySocks、smtplib 等  
-- 需获取 Telegram 的 `api_id` 与 `api_hash`  
-- 配置 SMTP 邮箱信息（如需邮件通知）  
-- 配置 One/NEW API 的 `api_key` 与 `api_base_url` 以调用 AI 模型服务（如需图片识别）
+### 环境要求
 
-## 安装指南
+- Python 3.8+
+- Telegram API 账号
+- OpenAI API Key（可选，AI功能需要）
 
-1. 克隆或下载本项目代码：
-   ```bash
-   git clone https://github.com/djksps1/telegram-monitor.git
+### 安装步骤
 
- 
-2. 安装依赖：
-   ```bash
-   pip install -r requirements.txt
+1. **克隆项目**
+```bash
+git clone https://github.com/your-username/tg-monitor.git
+cd tg-monitor
+```
+
+2. **安装依赖**
+```bash
+pip install -r requirements.txt
+```
+
+3. **配置环境**
+```bash
+# 复制配置模板
+cp config.example.env .env
+
+# 编辑配置文件
+nano .env
+```
+
+4. **基础配置**
+```env
+# Telegram API (必须)
+TG_API_ID=your_api_id
+TG_API_HASH=your_api_hash
+
+# OpenAI API (可选，AI功能需要)
+OPENAI_API_KEY=your_openai_key
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o
+
+# 邮件配置 (可选)
+EMAIL_FROM=your@email.com
+EMAIL_PASSWORD=your_password
+EMAIL_TO=notify@email.com
+
+# Web界面
+WEB_HOST=127.0.0.1
+WEB_PORT=8000
+WEB_USERNAME=admin
+WEB_PASSWORD=admin123
+```
+
+5. **启动系统**
+```bash
+# 启动Web界面
+python3 web_app_launcher.py
+
+# 公网访问模式
+python3 web_app_launcher.py --public
+
+# 调试模式
+python3 web_app_launcher.py --debug
+```
+
+### 首次使用
+
+1. 访问 `http://localhost:8000`
+2. 使用 `admin/admin123` 登录（可在.env中修改）
+3. 添加Telegram账号
+4. 创建监控器配置
+5. 开始监控！
+
+## 📖 详细功能
+
+### 监控器类型
+
+| 类型 | 功能描述 | 适用场景 |
+|-----|---------|---------|
+| **关键词监控** | 监控包含特定关键词的消息 | 品牌监控、敏感词检测 |
+| **文件监控** | 监控特定类型文件的分享 | 文档收集、资源监控 |
+| **AI监控** | 基于AI判断的智能监控 | 复杂语义分析、情感识别 |
+| **图片按钮** | AI分析图片并自动点击按钮 | 验证码处理、游戏自动化 |
+| **全量监控** | 监控所有消息 | 数据备份、全面监控 |
+
+### 配置选项
+
+#### **过滤条件**
+- 监控特定聊天/群组/频道/Bot
+- 过滤特定用户或Bot
+- 支持白名单和黑名单机制
+
+#### **执行模式**
+- 合并模式：收集所有匹配的监控器，合并它们的动作后统一执行
+- 全部独立执行模式：每个匹配的监控器都独立执行所有动作
+- 首次匹配停止模式：匹配到第一个监控器后立即停止
+
+#### **执行动作**
+- 📧 **邮件通知** - 详细的匹配信息邮件
+- 🔄 **自动转发** - 转发到指定聊天
+- 💬 **自动回复** - 固定回复或AI生成回复
+- 💾 **文件保存** - 自动下载并保存文件
+- 📊 **日志记录** - 记录到指定文件
+
+#### **高级选项**
+- 🎯 **优先级控制** - 多监控器匹配时的执行顺序
+- ⏱️ **延迟设置** - 随机延迟避免检测
+- 🔢 **执行限制** - 达到次数后自动暂停
+- 🎨 **回复模式** - 回复消息或直接发送
 
 
-3. 获取 Telegram API 凭证（`api_id` 和 `api_hash`）。
- 
-4. 配置 One/NEW API 的 `api_key` 与 `api_base_url` 以使用 AI 模型服务。
- 
-5. 配置 SMTP 邮箱信息（如需邮件通知）。
+## ⚙️ 配置管理
 
-## 使用说明 
- 
-1. **运行程序** 
-启动程序：
+### Web界面配置
+
+1. **账号管理** - `/accounts` 
+   - 添加/删除Telegram账号
+   - 查看连接状态和监控状态
+
+2. **监控器管理** - `/monitors`
+   - 创建/编辑/删除监控器
+   - 查看执行统计和状态
+
+3. **定时消息** - `/scheduled`
+   - 配置定时发送任务
+   - 支持Cron表达式
+
+4. **系统状态** - `/`
+   - 查看系统运行状态
+   - 监控统计和日志
+
+### 配置导入导出
+
+支持JSON格式的配置导入导出，方便批量管理和备份：
 
 ```bash
-python monitor.py
+# 访问导出页面
+http://localhost:8000/export
+
+# 访问导入页面  
+http://localhost:8000/import
 ```
- 
-1. **登录 Telegram** 
-程序首次运行时会提示输入 `api_id`、`api_hash`、手机号及验证码（如启用两步验证，还需输入密码）。
- 
-2. **配置监控参数** 
-程序启动后进入交互式命令模式，用户可根据需求添加或修改各类监控配置（包括关键词监控、文件后缀监控、全量监控、按钮监控、定时任务、图片监听）。
-注意：在关键词配置中，您可以启用回复功能，配置回复词组以及回复延时范围，程序将在检测到关键词时自动在原消息所在对话中回复一条随机回复内容。
- 
-3. **配置管理**
- 
-- 使用 `exportallconfig` 命令可以一键导出所有账号配置，生成的 JSON 文件中包含完整的监控参数（包括新增的回复功能配置）。
- 
-- 使用 `importallconfig` 命令时，程序将读取配置文件中的账号标识（手机号），并自动补充缺失的回复功能字段（如 `reply_enabled`、`reply_texts`、`reply_delay_min`、`reply_delay_max`）到当前配置中。
- 
-1. **账号管理**
- 
-- 在 `listaccount` 命令中，将显示所有已登录账号的数字序号及对应手机号；
- 
-- 切换账号时，请输入显示的数字序号（例如输入 `1` 切换到第一个添加的账号）。
- 
-1. **启动监控** 
-完成配置后，输入 `start` 命令开始监控消息。
 
-## 可用命令列表 
- 
-- **账号管理**  
-  - `addaccount`：添加新账号
- 
-  - `removeaccount`：移除账号
- 
-  - `listaccount`：列出所有账号（以数字序号显示）
- 
-  - `switchaccount`：通过输入数字序号切换当前工作账号
- 
-- **配置管理**  
-  - `exportallconfig`：一键导出所有账号配置
- 
-  - `importallconfig`：选择性导入配置（支持自动补全新增字段）
- 
-  - `blockbot` / `unblockbot`：屏蔽或取消屏蔽指定 Telegram Bot
- 
-- **监控配置管理**  
-  - `addkeyword` / `modifykeyword` / `removekeyword` / `showkeywords`：管理关键词监控
-（注：在添加或修改关键词配置时，支持设置自动转发、邮件通知、日志记录以及回复功能）
- 
-  - `addext` / `modifyext` / `removeext` / `showext`：管理文件后缀监控（支持用户过滤功能）
- 
-  - `addall` / `modifyall` / `removeall` / `showall`：管理全量监控配置（支持消息记录保存到本地）
- 
-  - `addbutton` / `modifybutton` / `removebutton` / `showbuttons`：管理按钮关键词监控
- 
-  - `addlistener` / `removelistener` / `showlistener`：管理图片+按钮监听对话ID
- 
-- **定时任务管理**  
-  - `schedule` / `modifyschedule` / `removeschedule` / `showschedule`：管理定时消息任务（支持随机延时及自动删除）
- 
-- **监控控制**  
-  - `start` / `stop`：启动或停止监控
- 
-  - `exit`：退出程序
- 
- - **频道群聊链接导出**
-  - `exportlinks` : 频道群聊链接以json或csv格式导出
+## 🔧 高级配置
 
-## 注意事项 
- 
-- 请遵守 Telegram 使用条款，避免滥用监控功能导致账号受限。
- 
-- 妥善保管您的 `api_id`、`api_hash` 及会话文件，防止账号信息泄露。
- 
-- 如需邮件通知，请正确配置 SMTP 信息及授权码。
- 
-- 配置 One/NEW API 的 `api_key` 与 `api_base_url` 以使用 AI 模型服务进行图片识别。
-  
-- 屏蔽或监测群聊中指定频道或机器人时，频道id输入格式为去除前面的"-100",如频道id为:-1001234567,则输入:1234567,机器人则输入bot_id，监控频道时则正常输入频道id
+### AI功能配置
 
-## 常见问题 
- 
-1. **无法连接 Telegram** 
-检查网络、代理配置及 API 凭证是否正确。
- 
-2. **邮件发送失败** 
-请确认 SMTP 配置正确，并设置了正确的邮箱授权码。
- 
-3. **AI 模型调用失败** 
-程序会自动重试一次，若仍失败则放弃本次处理并删除本地图片。
- 
-4. **定时任务不执行** 
-检查 Cron 表达式、时区设置，并确认调度器已启动。
+```env
+# OpenAI配置
+OPENAI_API_KEY=sk-xxx
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o
 
-## 贡献与支持 
+# 自定义API端点
+OPENAI_BASE_URL=https://your-proxy.com/v1
+```
 
-欢迎大家提出建议和改进意见。如有问题或希望新增功能，请提交 Issue 或 Pull Request。
+### 邮件通知配置
 
-## 许可证 
+```env
+# SMTP配置
+EMAIL_SMTP_SERVER=smtp.qq.com
+EMAIL_SMTP_PORT=465
+EMAIL_FROM=your@qq.com
+EMAIL_PASSWORD=your_app_password
+EMAIL_TO=notify@email.com
+```
 
-本项目采用 MIT 许可证。
+### 安全配置
+
+```env
+# Web界面安全
+WEB_USERNAME=your_username
+WEB_PASSWORD=your_strong_password
+SECRET_KEY=your_secret_key
+
+# 访问控制
+WEB_HOST=127.0.0.1  # 仅本地访问
+# WEB_HOST=0.0.0.0  # 允许外网访问（谨慎使用）
+```
+
+
+## 🛠️ 故障排除
+
+### 常见问题
+
+**Q: 无法连接Telegram账号**
+A: 检查TG_API_ID和TG_API_HASH配置，确保网络连接正常
+
+**Q: AI功能不工作**
+A: 检查OPENAI_API_KEY配置，确保API额度充足
+
+**Q: 邮件通知失败**
+A: 检查SMTP配置，确保邮箱开启了应用密码
+
+**Q: Web界面无法访问**
+A: 检查防火墙设置，确保端口8000未被占用
+
+
+
+## 🏗️ 项目结构
+
+```
+tg-monitor/
+├── core/              # 核心功能模块
+│   ├── account_manager.py    # 账号管理
+│   └── monitor_engine.py     # 监控引擎
+├── monitors/          # 监控器实现
+│   ├── keyword_monitor.py    # 关键词监控
+│   ├── ai_monitor.py         # AI监控
+│   ├── file_monitor.py       # 文件监控
+│   └── image_button_monitor.py # 图片按钮监控
+├── services/          # 外部服务
+│   ├── ai_service.py         # AI服务
+│   └── enhanced_forward_service.py # 增强转发
+├── ui/               # Web界面
+│   ├── web_app.py           # FastAPI应用
+│   ├── config_wizard.py     # 配置向导
+│   └── templates/           # HTML模板
+├── models/           # 数据模型
+├── utils/            # 工具函数
+├── data/             # 数据存储
+├── logs/             # 日志文件
+└── downloads/        # 下载文件
+```
+
+## 🤝 贡献
+
+欢迎提交Issue和Pull Request！
+
+### 开发环境
+
+```bash
+# 克隆代码
+git clone https://github.com/your-username/tg-monitor.git
+
+# 安装开发依赖
+pip install -r requirements-dev.txt
+
+# 运行测试
+python3 web_app_launcher.py --public
+
+
+```
+
+### 提交规范
+
+- 功能: `feat: 添加新的监控类型`
+- 修复: `fix: 修复AI监控器的bug`
+- 文档: `docs: 更新README.md`
+
+## 📄 许可证
+
+MIT License - 详见 [LICENSE](LICENSE) 文件
+
+## ⚠️ 免责声明
+
+- 本工具仅供学习和合法用途使用
+- 请遵守Telegram服务条款和当地法律法规
+- 使用AI功能时请注意API使用费用
+- 建议在安全的网络环境中使用
+
+## 🔗 相关链接
+
+- [Telegram API 文档](https://core.telegram.org/api)
+- [OpenAI API 文档](https://platform.openai.com/docs)
+- [FastAPI 文档](https://fastapi.tiangolo.com/)
+
+## 📊 系统特性
+
+### 性能优化
+- ⚡ **高速响应** - 关键词匹配到回复仅需100-300ms
+- 🔄 **异步处理** - 邮件发送等操作不阻塞主流程
+- 💾 **内存优化** - 智能的消息去重和缓存管理
+
+### 可靠性
+- 🛡️ **错误恢复** - 完善的异常处理和回退机制
+- 📝 **详细日志** - 分级日志系统，便于故障排查
+- 🔒 **单例模式** - 避免资源竞争和重复初始化
+
+### 扩展性
+- 🔌 **模块化设计** - 监控器采用策略模式，易于扩展
+- 🏭 **工厂模式** - 统一的监控器创建和管理
+- 🎛️ **配置化** - 所有功能都可通过配置调整
+
+---
+
+**开始您的Telegram自动化之旅！** 🚀
+
+如有问题或建议，欢迎提交Issue或联系开发者。
