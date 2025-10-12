@@ -56,52 +56,52 @@ class WizardSession:
     completed_steps: List[WizardStepType]
     errors: List[str]
     created_at: float = None
-    
+
     def __post_init__(self):
         if self.created_at is None:
             self.created_at = time.time()
 
 
 class ConfigWizard(metaclass=Singleton):
-    
+
     def __init__(self):
         self.logger = get_logger(__name__)
         self.sessions: Dict[str, WizardSession] = {}
-        
+
         self.steps = self._define_wizard_steps()
-        
+
         self._start_session_cleanup()
-        
-        self.logger.debug("配置向导初始化完成")
-    
+
+        self.logger.info("配置向导初始化完成")
+
     def _start_session_cleanup(self):
         import threading
-        
+
         def cleanup_old_sessions():
             while True:
                 try:
                     current_time = time.time()
                     expired_sessions = []
-                    
+
                     for session_id, session in self.sessions.items():
                         if current_time - session.created_at > 1800:
                             expired_sessions.append(session_id)
-                    
+
                     for session_id in expired_sessions:
                         del self.sessions[session_id]
                         self.logger.debug(f"清理过期会话: {session_id}")
-                    
+
                     if expired_sessions:
                         self.logger.debug(f"本次清理了 {len(expired_sessions)} 个过期会话")
-                    
+
                 except Exception as e:
                     self.logger.error(f"清理会话时出错: {e}")
-                
+
                 time.sleep(300)
-        
+
         cleanup_thread = threading.Thread(target=cleanup_old_sessions, daemon=True)
         cleanup_thread.start()
-    
+
     def _define_wizard_steps(self) -> Dict[WizardStepType, WizardStep]:
         return {
             WizardStepType.ACCOUNT_SETUP: WizardStep(
@@ -122,7 +122,7 @@ class ConfigWizard(metaclass=Singleton):
                 },
                 next_step=WizardStepType.MONITOR_TYPE
             ),
-            
+
             WizardStepType.MONITOR_TYPE: WizardStep(
                 step_type=WizardStepType.MONITOR_TYPE,
                 title="监控类型",
@@ -153,7 +153,7 @@ class ConfigWizard(metaclass=Singleton):
                     "ai": WizardStepType.AI_CONFIG
                 }
             ),
-            
+
             WizardStepType.KEYWORD_CONFIG: WizardStep(
                 step_type=WizardStepType.KEYWORD_CONFIG,
                 title="关键词配置",
@@ -264,7 +264,7 @@ class ConfigWizard(metaclass=Singleton):
                 },
                 next_step=WizardStepType.NOTIFICATION_CONFIG
             ),
-            
+
             WizardStepType.FILE_CONFIG: WizardStep(
                 step_type=WizardStepType.FILE_CONFIG,
                 title="文件监控配置",
@@ -327,7 +327,7 @@ class ConfigWizard(metaclass=Singleton):
                 },
                 next_step=WizardStepType.NOTIFICATION_CONFIG
             ),
-            
+
             WizardStepType.AI_CONFIG: WizardStep(
                 step_type=WizardStepType.AI_CONFIG,
                 title="AI监控配置",
@@ -445,7 +445,7 @@ class ConfigWizard(metaclass=Singleton):
                 },
                 next_step=WizardStepType.NOTIFICATION_CONFIG
             ),
-            
+
             WizardStepType.BUTTON_CONFIG: WizardStep(
                 step_type=WizardStepType.BUTTON_CONFIG,
                 title="按钮监控配置",
@@ -464,24 +464,25 @@ class ConfigWizard(metaclass=Singleton):
                         "help": "选择监控按钮的方式"
                     },
                     {
-                        "name": "button_keyword",
-                        "type": "text",
-                        "label": "按钮关键词",
-                        "required": True,
-                        "placeholder": "要点击的按钮文字",
-                        "help": "监控包含此文字的按钮",
-                        "conditional": {"monitor_subtype": "button_only"}
-                    },
-                    {
                         "name": "mode",
                         "type": "select",
                         "label": "监控模式",
                         "required": True,
                         "options": [
-                            {"value": "manual", "label": "手动模式"},
-                            {"value": "ai", "label": "AI模式"}
+                            {"value": "manual", "label": "手动模式 - 关键词匹配"},
+                            {"value": "ai", "label": "AI模式 - 智能判断"}
                         ],
                         "default": "manual",
+                        "conditional": {"monitor_subtype": "button_only"},
+                        "help": "手动模式需要设置按钮关键词，AI模式由AI自动判断要点击的按钮"
+                    },
+                    {
+                        "name": "button_keyword",
+                        "type": "text",
+                        "label": "按钮关键词",
+                        "required": False,
+                        "placeholder": "要点击的按钮文字",
+                        "help": "手动模式下必填；AI模式下可选（用于过滤按钮）",
                         "conditional": {"monitor_subtype": "button_only"}
                     },
                     {
@@ -489,9 +490,9 @@ class ConfigWizard(metaclass=Singleton):
                         "type": "textarea",
                         "label": "AI提示词",
                         "required": False,
-                        "placeholder": "描述AI如何选择按钮",
+                        "placeholder": "描述AI如何选择按钮，例如：点击包含'确认'或'提交'的按钮",
                         "conditional": {"mode": "ai"},
-                        "help": "仅在AI模式下使用"
+                        "help": "AI模式下使用，描述如何选择要点击的按钮"
                     },
                     {
                         "name": "image_ai_prompt",
@@ -541,13 +542,13 @@ class ConfigWizard(metaclass=Singleton):
                 ],
                 validation_rules={
                     "monitor_subtype": {"required": True},
-                    "button_keyword": {
-                        "required_if": {"monitor_subtype": "button_only"},
-                        "message": "普通按钮监控必须设置按钮关键词"
-                    },
                     "mode": {
                         "required_if": {"monitor_subtype": "button_only"},
                         "message": "普通按钮监控必须选择监控模式"
+                    },
+                    "button_keyword": {
+                        "custom_validation": "validate_button_keyword",
+                        "message": "手动模式下必须设置按钮关键词"
                     },
                     "chats": {"required": True},
                     "ai_prompt": {
@@ -561,7 +562,7 @@ class ConfigWizard(metaclass=Singleton):
                 },
                 next_step=WizardStepType.NOTIFICATION_CONFIG
             ),
-            
+
             WizardStepType.ALL_MESSAGES_CONFIG: WizardStep(
                 step_type=WizardStepType.ALL_MESSAGES_CONFIG,
                 title="全量监控配置",
@@ -651,7 +652,7 @@ class ConfigWizard(metaclass=Singleton):
                 },
                 next_step=WizardStepType.NOTIFICATION_CONFIG
             ),
-            
+
             WizardStepType.FILTER_CONFIG: WizardStep(
                 step_type=WizardStepType.FILTER_CONFIG,
                 title="过滤配置",
@@ -742,7 +743,7 @@ class ConfigWizard(metaclass=Singleton):
                 validation_rules={},
                 next_step=WizardStepType.ADVANCED_CONFIG
             ),
-            
+
             WizardStepType.ADVANCED_CONFIG: WizardStep(
                 step_type=WizardStepType.ADVANCED_CONFIG,
                 title="高级配置",
@@ -791,7 +792,7 @@ class ConfigWizard(metaclass=Singleton):
                 validation_rules={},
                 next_step=WizardStepType.REVIEW_CONFIG
             ),
-            
+
             WizardStepType.NOTIFICATION_CONFIG: WizardStep(
                 step_type=WizardStepType.NOTIFICATION_CONFIG,
                 title="通知配置",
@@ -833,7 +834,7 @@ class ConfigWizard(metaclass=Singleton):
                     "auto_forward": WizardStepType.FORWARD_CONFIG
                 }
             ),
-            
+
             WizardStepType.FORWARD_CONFIG: WizardStep(
                 step_type=WizardStepType.FORWARD_CONFIG,
                 title="转发配置",
@@ -872,7 +873,7 @@ class ConfigWizard(metaclass=Singleton):
                 },
                 next_step=WizardStepType.FILTER_CONFIG
             ),
-            
+
             WizardStepType.REVIEW_CONFIG: WizardStep(
                 step_type=WizardStepType.REVIEW_CONFIG,
                 title="配置预览",
@@ -896,12 +897,12 @@ class ConfigWizard(metaclass=Singleton):
                 }
             )
         }
-    
+
     def start_wizard(self, session_id: str) -> Dict[str, Any]:
         try:
-            self.logger.info(f"开始向导，session_id: {session_id}")
+            self.logger.debug(f"开始向导，session_id: {session_id}")
             self.logger.debug(f"当前会话数: {len(self.sessions)}")
-            
+
             session = WizardSession(
                 session_id=session_id,
                 current_step=WizardStepType.ACCOUNT_SETUP,
@@ -909,12 +910,12 @@ class ConfigWizard(metaclass=Singleton):
                 completed_steps=[],
                 errors=[]
             )
-            
+
             self.sessions[session_id] = session
-            self.logger.debug(f"会话已创建，当前会话: {list(self.sessions.keys())}")
-            
+            self.logger.info(f"会话已创建，当前会话: {list(self.sessions.keys())}")
+
             return self.get_step_data(session_id)
-            
+
         except Exception as e:
             self.logger.error(f"启动向导失败: {e}")
             return {
@@ -922,18 +923,18 @@ class ConfigWizard(metaclass=Singleton):
                 "errors": [f"启动向导失败: {str(e)}"],
                 "message": f"启动向导失败: {str(e)}"
             }
-    
+
     def start_wizard_edit_mode(self, session_id: str, edit_key: str, edit_config: Dict[str, Any]) -> Dict[str, Any]:
         try:
             self.logger.debug(f"编辑模式启动向导，session_id: {session_id}, edit_key: {edit_key}")
-            
+
             collected_data = {}
             if edit_config:
                 collected_data = self._config_to_wizard_data(edit_config, edit_key)
                 self.logger.debug(f"预填充数据: {collected_data}")
-            
+
             monitor_type = collected_data.get('monitor_type', 'keyword')
-            
+
             if monitor_type == 'keyword':
                 start_step = WizardStepType.KEYWORD_CONFIG
             elif monitor_type == 'file':
@@ -946,7 +947,7 @@ class ConfigWizard(metaclass=Singleton):
                 start_step = WizardStepType.ALL_MESSAGES_CONFIG
             else:
                 start_step = WizardStepType.ACCOUNT_SETUP
-            
+
             session = WizardSession(
                 session_id=session_id,
                 current_step=start_step,
@@ -954,14 +955,14 @@ class ConfigWizard(metaclass=Singleton):
                 completed_steps=[WizardStepType.ACCOUNT_SETUP, WizardStepType.MONITOR_TYPE],
                 errors=[]
             )
-            
+
             self.sessions[session_id] = session
-            
+
             self.logger.debug(f"编辑模式会话初始化完成，会话数据: {collected_data}")
-            self.logger.info(f"其中 monitor_type={collected_data.get('monitor_type')}, account_id={collected_data.get('account_id')}")
-            
+            self.logger.debug(f"其中 monitor_type={collected_data.get('monitor_type')}, account_id={collected_data.get('account_id')}")
+
             return self.get_step_data(session_id)
-            
+
         except Exception as e:
             self.logger.error(f"编辑模式启动向导失败: {e}")
             return {
@@ -969,15 +970,15 @@ class ConfigWizard(metaclass=Singleton):
                 "errors": [f"编辑模式启动失败: {str(e)}"],
                 "message": f"编辑模式启动失败: {str(e)}"
             }
-    
+
     def _config_to_wizard_data(self, config: Dict[str, Any], edit_key: str) -> Dict[str, Any]:
         data = {}
-        
+
         data['edit_key'] = edit_key
-        
+
         if 'account_id' in config:
             data['account_id'] = config['account_id']
-        
+
         if 'KeywordMonitor' in edit_key or edit_key.startswith('keyword_'):
             data['monitor_type'] = 'keyword'
         elif 'FileMonitor' in edit_key or edit_key.startswith('file_'):
@@ -1005,7 +1006,7 @@ class ConfigWizard(metaclass=Singleton):
             else:
                 self.logger.warning(f"无法从edit_key推断监控类型: {edit_key}")
                 data['monitor_type'] = 'keyword'
-        
+
         for key, value in config.items():
             if key == 'chats' and isinstance(value, list):
                 data['chats'] = ', '.join(str(chat) for chat in value)
@@ -1036,7 +1037,7 @@ class ConfigWizard(metaclass=Singleton):
                     data['filter_specific_ids'] = True
             elif key == 'reply_texts' and isinstance(value, list):
                 data['reply_texts'] = '\n'.join(value) if value else ''
-            
+
             elif key == 'keyword':
                 data['keyword'] = str(value) if value else ''
             elif key == 'chat_id':
@@ -1061,7 +1062,7 @@ class ConfigWizard(metaclass=Singleton):
                 data['execution_mode'] = str(value) if value else 'merge'
             elif key == 'ai_model':
                 data['ai_model'] = str(value) if value else 'gpt-4o'
-            
+
             elif key == 'reply_delay_min':
                 data['reply_delay_min'] = float(value) if value is not None else 0
             elif key == 'reply_delay_max':
@@ -1078,7 +1079,7 @@ class ConfigWizard(metaclass=Singleton):
                 data['max_executions'] = str(value) if value else ''
             elif key == 'priority':
                 data['priority'] = int(value) if value is not None else 50
-            
+
             elif key == 'reply_enabled':
                 data['reply_enabled'] = bool(value)
             elif key == 'email_notify':
@@ -1089,7 +1090,7 @@ class ConfigWizard(metaclass=Singleton):
                 data['enhanced_forward'] = bool(value)
             elif key == 'active':
                 data['active'] = bool(value)
-            
+
             elif key == 'match_type':
                 if hasattr(value, 'value'):
                     data['match_type'] = value.value
@@ -1109,34 +1110,34 @@ class ConfigWizard(metaclass=Singleton):
                     data['mode'] = value.value
                 else:
                     data['mode'] = str(value) if value else 'manual'
-            
+
             elif key not in ['monitor_type', 'type', 'execution_count']:
                 data[key] = value
-        
+
         has_specific_ids = bool(config.get('bot_ids')) or \
                           bool(config.get('channel_ids')) or \
                           bool(config.get('group_ids')) or \
                           (bool(config.get('users')) and config.get('user_option') == '1')
-        
+
         if not has_specific_ids and not config.get('users'):
             data['filter_mode'] = 'no_filter'
         elif has_specific_ids:
             data['filter_mode'] = 'specific_ids'
             data['filter_specific_ids'] = True
-        
+
         return data
-    
+
     def get_step_data(self, session_id: str) -> Dict[str, Any]:
         import copy
-        
+
         if session_id not in self.sessions:
             raise ValueError("会话不存在")
-        
+
         session = self.sessions[session_id]
         step = self.steps[session.current_step]
-        
+
         fields = self._process_dynamic_fields(step.fields, session)
-        
+
         result = {
             "session_id": str(session_id),
             "step": {
@@ -1153,16 +1154,16 @@ class ConfigWizard(metaclass=Singleton):
             "collected_data": copy.deepcopy(session.collected_data),
             "errors": list(session.errors) if session.errors else []
         }
-        
+
         return result
-    
+
     def _process_dynamic_fields(self, fields: List[Dict[str, Any]], session: WizardSession) -> List[Dict[str, Any]]:
         import copy
         processed_fields = []
-        
+
         for field in fields:
             field_copy = copy.deepcopy(field)
-            
+
             if field.get("options") == "dynamic":
                 if field["name"] == "account_id":
                     from core import AccountManager
@@ -1172,11 +1173,11 @@ class ConfigWizard(metaclass=Singleton):
                         {"value": str(acc.account_id), "label": f"{acc.config.phone} ({acc.account_id})"}
                         for acc in accounts
                     ]
-            
+
             if "conditional" in field:
                 condition = field["conditional"]
                 field_copy["conditional"] = condition
-                
+
                 should_show = True
                 for key, value in condition.items():
                     collected_value = session.collected_data.get(key)
@@ -1186,26 +1187,26 @@ class ConfigWizard(metaclass=Singleton):
                         should_show = collected_value not in (True, "on", "true", "1")
                     else:
                         should_show = collected_value == value
-                    
+
                     if not should_show:
                         break
-                
+
                 field_copy["show"] = should_show
             else:
                 field_copy["show"] = True
-            
+
             if field.get("value") == "dynamic":
                 if field["name"] == "config_summary":
                     field_copy["value"] = self._generate_config_summary(session)
-            
+
             field_name = field["name"]
             if field_name in session.collected_data:
                 field_copy["value"] = session.collected_data[field_name]
                 self.logger.debug(f"恢复字段 {field_name} 的值: {field_copy['value']}")
-            
+
             if field_name == "email_addresses":
                 current_value = field_copy.get("value", "")
-                
+
                 if field_name in session.collected_data and session.collected_data[field_name]:
                     field_copy["value"] = session.collected_data[field_name]
                 elif not current_value or current_value.strip() == "":
@@ -1219,18 +1220,18 @@ class ConfigWizard(metaclass=Singleton):
                     except Exception as e:
                         self.logger.error(f"读取默认邮箱失败: {e}")
                         field_copy["value"] = ""
-            
+
             processed_fields.append(field_copy)
-        
+
         return processed_fields
-    
+
     def _generate_config_summary(self, session: WizardSession) -> str:
         data = session.collected_data
         summary_parts = []
-        
+
         if "account_id" in data:
             summary_parts.append(f"账号: {data['account_id']}")
-        
+
         if "monitor_type" in data:
             type_map = {
                 "keyword": "关键词监控",
@@ -1238,7 +1239,7 @@ class ConfigWizard(metaclass=Singleton):
                 "ai": "AI智能监控"
             }
             summary_parts.append(f"类型: {type_map.get(data['monitor_type'], data['monitor_type'])}")
-        
+
         if data.get("monitor_type") == "keyword":
             if "keyword" in data:
                 summary_parts.append(f"关键词: {data['keyword']}")
@@ -1250,23 +1251,23 @@ class ConfigWizard(metaclass=Singleton):
         elif data.get("monitor_type") == "ai":
             if "ai_prompt" in data:
                 summary_parts.append(f"AI规则: {data['ai_prompt'][:50]}...")
-        
+
         if "chats" in data:
             summary_parts.append(f"监控群组: {data['chats']}")
-        
+
         if data.get("email_notify"):
             summary_parts.append("✓ 邮件通知")
         if data.get("auto_forward"):
             summary_parts.append("✓ 自动转发")
             if data.get("enhanced_forward"):
                 summary_parts.append("✓ 增强转发")
-        
+
         return "\n".join(summary_parts)
-    
+
     def process_step(self, session_id: str, step_data: Dict[str, Any]) -> Dict[str, Any]:
         try:
             self.logger.debug(f"处理步骤，session_id: {session_id}")
-            
+
             if session_id not in self.sessions:
                 self.logger.warning(f"会话 {session_id} 不存在")
                 return {
@@ -1274,38 +1275,38 @@ class ConfigWizard(metaclass=Singleton):
                     "errors": ["会话已过期，请重新开始配置"],
                     "message": "会话已过期，请重新开始配置"
                 }
-            
+
             session = self.sessions[session_id]
             step = self.steps[session.current_step]
-            
+
             errors = self._validate_step_data(step, step_data)
             session.errors = errors
-            
+
             if errors:
                 return {
                     "success": False,
                     "errors": errors,
                     "step_data": self.get_step_data(session_id)
                 }
-            
-            
+
+
             monitor_type = session.collected_data.get('monitor_type')
             account_id = session.collected_data.get('account_id')
             edit_key = session.collected_data.get('edit_key')
-            
+
             session.collected_data.update(step_data)
-            
+
             if monitor_type and 'monitor_type' not in step_data:
                 session.collected_data['monitor_type'] = monitor_type
             if account_id and 'account_id' not in step_data:
                 session.collected_data['account_id'] = account_id
             if edit_key and 'edit_key' not in step_data:
                 session.collected_data['edit_key'] = edit_key
-            
+
             session.completed_steps.append(session.current_step)
-            
+
             next_step = self._get_next_step(step, step_data)
-            
+
             if next_step:
                 session.current_step = next_step
                 return {
@@ -1316,7 +1317,7 @@ class ConfigWizard(metaclass=Singleton):
                 result = self._complete_configuration(session)
                 self._cleanup_session(session_id)
                 return result
-                
+
         except Exception as e:
             self.logger.error(f"处理向导步骤失败: {e}")
             return {
@@ -1324,7 +1325,7 @@ class ConfigWizard(metaclass=Singleton):
                 "errors": [f"处理失败: {str(e)}"],
                 "message": f"处理失败: {str(e)}"
             }
-    
+
     def go_to_previous_step(self, session_id: str) -> Dict[str, Any]:
         try:
             if session_id not in self.sessions:
@@ -1333,13 +1334,13 @@ class ConfigWizard(metaclass=Singleton):
                     "errors": ["会话已过期"],
                     "message": "会话已过期"
                 }
-            
+
             session = self.sessions[session_id]
-            
+
             if session.completed_steps:
                 last_step = session.completed_steps.pop()
                 session.current_step = last_step
-                
+
                 return {
                     "success": True,
                     "step_data": self.get_step_data(session_id)
@@ -1350,7 +1351,7 @@ class ConfigWizard(metaclass=Singleton):
                     "errors": ["已经是第一步"],
                     "message": "已经是第一步"
                 }
-                
+
         except Exception as e:
             self.logger.error(f"返回上一步失败: {e}")
             return {
@@ -1358,21 +1359,21 @@ class ConfigWizard(metaclass=Singleton):
                 "errors": [f"操作失败: {str(e)}"],
                 "message": f"操作失败: {str(e)}"
             }
-    
+
     def _validate_step_data(self, step: WizardStep, data: Dict[str, Any]) -> List[str]:
         errors = []
-        
+
         if not step.validation_rules:
             return errors
-        
+
         for field_name, rules in step.validation_rules.items():
             value = data.get(field_name)
-            
+
             if rules.get("required") and not value:
                 error_msg = rules.get("message") or f"{field_name}是必填项"
                 errors.append(error_msg)
                 continue
-            
+
             if "required_if" in rules:
                 condition = rules["required_if"]
                 should_require = all(
@@ -1383,40 +1384,40 @@ class ConfigWizard(metaclass=Singleton):
                     error_msg = rules.get("message") or f"在当前配置下{field_name}是必填项"
                     errors.append(error_msg)
                     continue
-            
+
             if value:
                 if "min_length" in rules and len(str(value)) < rules["min_length"]:
                     errors.append(f"{field_name}长度不能少于{rules['min_length']}个字符")
-                
+
                 if rules.get("email_format"):
                     import re
                     email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
                     if not re.match(email_pattern, value):
                         errors.append(f"{field_name}邮箱格式不正确")
-        
+
         return errors
-    
+
     def _get_next_step(self, step: WizardStep, step_data: Dict[str, Any]) -> Optional[WizardStepType]:
         if step.conditional_next:
             if "monitor_type" in step_data:
                 monitor_type = step_data.get("monitor_type")
                 if monitor_type in step.conditional_next:
                     return step.conditional_next[monitor_type]
-            
+
             if "auto_forward" in step_data:
                 auto_forward = step_data.get("auto_forward")
                 if auto_forward in (True, "on", "true", "1") and "auto_forward" in step.conditional_next:
                     return step.conditional_next["auto_forward"]
-        
+
         return step.next_step
-    
+
     def _complete_configuration(self, session: WizardSession) -> Dict[str, Any]:
         try:
             data = session.collected_data
-            
+
             monitor_type = data.get("monitor_type")
             account_id = data.get("account_id")
-            
+
             if not monitor_type or not account_id:
                 self.logger.error(f"缺少必要的配置信息: monitor_type={monitor_type}, account_id={account_id}")
                 self.logger.error(f"当前会话数据: {data}")
@@ -1426,51 +1427,51 @@ class ConfigWizard(metaclass=Singleton):
                     "errors": ["缺少必要的配置信息，请确保已选择账号和监控类型"],
                     "message": "缺少必要的配置信息，请确保已选择账号和监控类型"
                 }
-            
+
             edit_key = data.get("edit_key")
             if edit_key:
                 from core import MonitorEngine
                 monitor_engine = MonitorEngine()
                 monitor_engine.remove_monitor(account_id, edit_key)
                 self.logger.info(f"编辑模式：已删除旧配置 {edit_key}")
-            
+
             if monitor_type == "keyword":
                 config = self._create_keyword_config(data)
                 monitor = monitor_factory.create_monitor(config)
                 monitor_key = f"keyword_{data['keyword']}"
-                
+
             elif monitor_type == "file":
                 extensions_str = data.get("file_extension", "")
                 extensions = [ext.strip() for ext in extensions_str.split(",") if ext.strip()]
-                
+
                 if not extensions:
                     return {
                         "success": False,
                         "errors": ["请至少指定一个文件扩展名"],
                         "message": "请至少指定一个文件扩展名"
                     }
-                
+
                 created_monitors = []
                 for ext in extensions:
                     file_data = data.copy()
                     file_data['file_extension'] = ext
-                    
+
                     config = self._create_file_config(file_data)
                     monitor = monitor_factory.create_monitor(config)
                     monitor_key = f"file_{ext}"
-                    
+
                     from core import MonitorEngine
                     monitor_engine = MonitorEngine()
                     monitor_engine.add_monitor(account_id, monitor, monitor_key)
                     created_monitors.append(ext)
-                
+
                 return {
                     "success": True,
                     "message": f"成功创建 {len(created_monitors)} 个文件监控器: {', '.join(created_monitors)}",
                     "monitor_keys": [f"file_{ext}" for ext in created_monitors],
                     "config_summary": self._generate_config_summary(session)
                 }
-            
+
             elif monitor_type == "button":
                 if data.get("monitor_subtype") == "image_button":
                     config = self._create_image_button_config(data)
@@ -1480,42 +1481,42 @@ class ConfigWizard(metaclass=Singleton):
                     config = self._create_button_config(data)
                     monitor = monitor_factory.create_monitor(config)
                     monitor_key = f"button_{data['button_keyword']}"
-            
+
             elif monitor_type == "all_messages":
                 config = self._create_all_messages_config(data)
                 monitor = monitor_factory.create_monitor(config)
                 monitor_key = f"all_messages_{data['chat_id']}"
-            
+
             elif monitor_type == "ai":
                 ai_monitor = self._create_ai_monitor(data)
                 monitor = ai_monitor
                 monitor_key = f"ai_{data['ai_prompt'][:20]}..."
-            
+
             else:
                 return {
                     "success": False,
                     "errors": [f"不支持的监控类型: {monitor_type}"],
                     "message": f"不支持的监控类型: {monitor_type}"
                 }
-            
+
             from core import MonitorEngine
             monitor_engine = MonitorEngine()
             monitor_engine.add_monitor(account_id, monitor, monitor_key)
-            
+
             return {
                 "success": True,
                 "message": "监控器创建成功！",
                 "monitor_key": monitor_key,
                 "config_summary": self._generate_config_summary(session)
             }
-                
+
         except Exception as e:
             self.logger.error(f"完成配置失败: {e}")
             return {
                 "success": False,
                 "message": f"配置失败: {str(e)}"
             }
-    
+
     def _create_keyword_config(self, data: Dict[str, Any]) -> KeywordConfig:
         chats = []
         chats_str = data.get('chats', '')
@@ -1527,7 +1528,7 @@ class ConfigWizard(metaclass=Singleton):
                         chats.append(int(chat))
                     except ValueError:
                         chats.append(chat)
-        
+
         forward_targets = []
         if data.get('auto_forward'):
             targets_str = data.get('forward_targets', '')
@@ -1539,13 +1540,13 @@ class ConfigWizard(metaclass=Singleton):
                             forward_targets.append(int(target))
                         except ValueError:
                             forward_targets.append(target)
-        
+
         reply_texts = []
         if data.get('reply_enabled'):
             texts_str = data.get('reply_texts', '')
             if texts_str:
                 reply_texts = [text.strip() for text in texts_str.split('\n') if text.strip()]
-        
+
         reply_type = data.get('reply_type', 'keyword')
         if reply_type == 'keyword':
             reply_content_type = 'custom'
@@ -1573,7 +1574,7 @@ class ConfigWizard(metaclass=Singleton):
             reply_content_type=reply_content_type,
             ai_reply_prompt=data.get('ai_reply_prompt', '')
         )
-        
+
         if data.get('filter_users'):
             users = []
             users_str = data.get('users', '')
@@ -1583,7 +1584,7 @@ class ConfigWizard(metaclass=Singleton):
                     if user:
                         users.append(user)
             config.users = users
-        
+
         blocked_users = []
         blocked_users_str = data.get('blocked_users', '')
         if blocked_users_str:
@@ -1592,7 +1593,7 @@ class ConfigWizard(metaclass=Singleton):
                 if user:
                     blocked_users.append(user)
         config.blocked_users = blocked_users
-        
+
         blocked_channels = []
         blocked_channels_str = data.get('blocked_channels', '')
         if blocked_channels_str:
@@ -1604,7 +1605,7 @@ class ConfigWizard(metaclass=Singleton):
                     except ValueError:
                         pass
         config.blocked_channels = blocked_channels
-        
+
         blocked_bots = []
         blocked_bots_str = data.get('blocked_bots', '')
         if blocked_bots_str:
@@ -1615,9 +1616,9 @@ class ConfigWizard(metaclass=Singleton):
                         blocked_bots.append(int(bot))
                     except ValueError:
                         pass
-        
+
         filter_mode = data.get("filter_mode", "blacklist")
-        
+
         if filter_mode == "specific_ids":
             user_ids = []
             if data.get("user_ids"):
@@ -1630,7 +1631,7 @@ class ConfigWizard(metaclass=Singleton):
                             user_ids.append(line)
             config.users = user_ids
             config.user_option = '1'
-            
+
             bot_ids = []
             if data.get("bot_ids"):
                 for line in data["bot_ids"].split("\n"):
@@ -1641,7 +1642,7 @@ class ConfigWizard(metaclass=Singleton):
                         except ValueError:
                             pass
             config.bot_ids = bot_ids
-            
+
             channel_ids = []
             if data.get("channel_ids"):
                 for line in data["channel_ids"].split("\n"):
@@ -1656,7 +1657,7 @@ class ConfigWizard(metaclass=Singleton):
                                 self.logger.debug(f"解析频道ID: {line} -> {parsed_id}")
                         except ValueError as e:
                             self.logger.warning(f"无效的频道ID格式: {line}, 错误: {e}")
-            
+
             if data.get("group_ids"):
                 for line in data["group_ids"].split("\n"):
                     line = line.strip()
@@ -1670,22 +1671,22 @@ class ConfigWizard(metaclass=Singleton):
                                 self.logger.debug(f"解析群组ID: {line} -> {parsed_id}")
                         except ValueError as e:
                             self.logger.warning(f"无效的群组ID格式: {line}, 错误: {e}")
-            
+
             config.channel_ids = channel_ids
             config.group_ids = []
-            
+
             self.logger.info(f"✅ [精确ID过滤配置] 用户IDs: {config.users}, Bot IDs: {config.bot_ids}, 频道/群组 IDs: {config.channel_ids}")
         else:
             config.bot_ids = []
             config.channel_ids = []
             config.group_ids = []
-        
+
         return config
-    
+
     def _create_file_config(self, data: Dict[str, Any]) -> FileConfig:
         chats_str = data.get("chats", "")
         chat_ids = []
-        
+
         if chats_str:
             for chat in chats_str.split(","):
                 chat = chat.strip()
@@ -1694,10 +1695,10 @@ class ConfigWizard(metaclass=Singleton):
                         chat_ids.append(int(chat))
                     except ValueError:
                         pass
-        
+
         extensions_str = data.get("file_extension", "")
         extensions = [ext.strip() for ext in extensions_str.split(",") if ext.strip()]
-        
+
         auto_forward = data.get("auto_forward") in (True, "on", "true", "1")
         email_notify = data.get("email_notify") in (True, "on", "true", "1")
         enhanced_forward = data.get("enhanced_forward") in (True, "on", "true", "1")
@@ -1706,7 +1707,7 @@ class ConfigWizard(metaclass=Singleton):
         log_to_file = data.get("log_to_file") in (True, "on", "true", "1")
         filter_specific_ids = data.get("filter_specific_ids") in (True, "on", "true", "1")
         filter_mode = data.get("filter_mode", "blacklist")
-        
+
         users = []
         if filter_users and data.get("users"):
             for line in data["users"].split("\n"):
@@ -1716,7 +1717,7 @@ class ConfigWizard(metaclass=Singleton):
                         users.append(int(line))
                     except ValueError:
                         users.append(line)
-        
+
         if filter_mode == "specific_ids" and data.get("user_ids"):
             for line in data["user_ids"].split("\n"):
                 line = line.strip()
@@ -1725,7 +1726,7 @@ class ConfigWizard(metaclass=Singleton):
                         users.append(int(line))
                     except ValueError:
                         users.append(line)
-        
+
         blocked_users = [line.strip() for line in data.get("blocked_users", "").split("\n") if line.strip()]
         blocked_channels = []
         if data.get("blocked_channels"):
@@ -1736,7 +1737,7 @@ class ConfigWizard(metaclass=Singleton):
                         blocked_channels.append(int(line))
                     except ValueError:
                         pass
-        
+
         blocked_bots = []
         if data.get("blocked_bots"):
             for line in data["blocked_bots"].split("\n"):
@@ -1746,7 +1747,7 @@ class ConfigWizard(metaclass=Singleton):
                         blocked_bots.append(int(line))
                     except ValueError:
                         pass
-        
+
         bot_ids = []
         if filter_specific_ids and data.get("bot_ids"):
             for line in data["bot_ids"].split("\n"):
@@ -1756,7 +1757,7 @@ class ConfigWizard(metaclass=Singleton):
                         bot_ids.append(int(line))
                     except ValueError:
                         pass
-        
+
         channel_ids = []
         if filter_specific_ids and data.get("channel_ids"):
             for line in data["channel_ids"].split("\n"):
@@ -1766,7 +1767,7 @@ class ConfigWizard(metaclass=Singleton):
                         channel_ids.append(int(line))
                     except ValueError:
                         pass
-        
+
         group_ids = []
         if filter_specific_ids and data.get("group_ids"):
             for line in data["group_ids"].split("\n"):
@@ -1787,35 +1788,35 @@ class ConfigWizard(metaclass=Singleton):
                         forward_targets.append(int(target))
                     except ValueError:
                         pass
-        
+
         min_size = None
         if data.get("min_size_kb") and str(data.get("min_size_kb")).strip():
             try:
                 min_size = float(data["min_size_kb"]) / 1024
             except (ValueError, TypeError):
                 min_size = None
-                
+
         max_size = None
         if data.get("max_size_mb") and str(data.get("max_size_mb")).strip():
             try:
                 max_size = float(data["max_size_mb"])
             except (ValueError, TypeError):
                 max_size = None
-                
+
         max_download_size = None
         if data.get("max_download_size"):
             try:
                 max_download_size = float(data["max_download_size"])
             except (ValueError, TypeError):
                 max_download_size = None
-        
+
         max_executions = None
         if data.get("max_executions") and str(data.get("max_executions")).strip():
             try:
                 max_executions = int(data["max_executions"])
             except (ValueError, TypeError):
                 max_executions = None
-        
+
         configs = []
         for ext in extensions:
             config = FileConfig(
@@ -1842,13 +1843,13 @@ class ConfigWizard(metaclass=Singleton):
                 log_file=data.get("log_file") if log_to_file else None
             )
             configs.append(config)
-        
+
         return configs[0] if configs else FileConfig()
-    
+
     def _create_ai_monitor(self, data: Dict[str, Any]):
         chats_str = data.get("chats", "")
         chat_ids = []
-        
+
         if chats_str:
             for chat in chats_str.split(","):
                 chat = chat.strip()
@@ -1857,12 +1858,12 @@ class ConfigWizard(metaclass=Singleton):
                         chat_ids.append(int(chat))
                     except ValueError:
                         pass
-        
+
         auto_forward = data.get("auto_forward") in (True, "on", "true", "1")
         email_notify = data.get("email_notify") in (True, "on", "true", "1")
         enhanced_forward = data.get("enhanced_forward") in (True, "on", "true", "1")
         reply_enabled = data.get("reply_enabled") in (True, "on", "true", "1")
-        
+
         forward_targets = []
         if auto_forward and data.get("forward_targets"):
             targets_str = data.get("forward_targets", "")
@@ -1873,25 +1874,25 @@ class ConfigWizard(metaclass=Singleton):
                         forward_targets.append(int(target))
                     except ValueError:
                         pass
-        
+
         confidence_threshold = 0.7
         if data.get("confidence_threshold"):
             try:
                 confidence_threshold = float(data["confidence_threshold"])
             except (ValueError, TypeError):
                 confidence_threshold = 0.7
-        
+
         builder = AIMonitorBuilder()
         builder.with_prompt(data.get("ai_prompt", ""))
         builder.with_chats(chat_ids)
         builder.with_confidence_threshold(confidence_threshold)
-        
+
         if email_notify:
             builder.with_email_notify(True)
-        
+
         if auto_forward:
             builder.with_auto_forward(True, forward_targets)
-        
+
         if enhanced_forward:
             max_size = None
             if data.get("max_download_size"):
@@ -1900,12 +1901,12 @@ class ConfigWizard(metaclass=Singleton):
                 except (ValueError, TypeError):
                     max_size = None
             builder.with_enhanced_forward(True, max_size)
-        
+
         if reply_enabled:
             reply_texts = []
             if data.get("reply_texts"):
                 reply_texts = [line.strip() for line in data["reply_texts"].split("\n") if line.strip()]
-            
+
             reply_delay_min = 0
             reply_delay_max = 5
             try:
@@ -1914,19 +1915,19 @@ class ConfigWizard(metaclass=Singleton):
             except (ValueError, TypeError):
                 reply_delay_min = 0
                 reply_delay_max = 5
-            
+
             reply_mode = data.get("reply_mode", "reply")
             builder.with_reply(True, reply_texts, reply_delay_min, reply_delay_max, reply_mode)
-        
+
         builder.with_priority(int(data.get('priority', 50)))
         builder.with_execution_mode(data.get('execution_mode', 'merge'))
-        
+
         return builder.build()
-    
+
     def _create_button_config(self, data: Dict[str, Any]) -> ButtonConfig:
         chats_str = data.get("chats", "")
         chat_ids = []
-        
+
         if chats_str:
             for chat in chats_str.split(","):
                 chat = chat.strip()
@@ -1935,14 +1936,14 @@ class ConfigWizard(metaclass=Singleton):
                         chat_ids.append(int(chat))
                     except ValueError:
                         pass
-        
+
         auto_forward = data.get("auto_forward") in (True, "on", "true", "1")
         email_notify = data.get("email_notify") in (True, "on", "true", "1")
         enhanced_forward = data.get("enhanced_forward") in (True, "on", "true", "1")
         filter_users = data.get("filter_users") in (True, "on", "true", "1")
         log_to_file = data.get("log_to_file") in (True, "on", "true", "1")
         filter_specific_ids = data.get("filter_specific_ids") in (True, "on", "true", "1")
-        
+
         users = []
         if filter_users and data.get("users"):
             for line in data["users"].split("\n"):
@@ -1952,7 +1953,7 @@ class ConfigWizard(metaclass=Singleton):
                         users.append(int(line))
                     except ValueError:
                         users.append(line)
-        
+
         blocked_users = [line.strip() for line in data.get("blocked_users", "").split("\n") if line.strip()]
         blocked_channels = []
         if data.get("blocked_channels"):
@@ -1963,7 +1964,7 @@ class ConfigWizard(metaclass=Singleton):
                         blocked_channels.append(int(line))
                     except ValueError:
                         pass
-        
+
         blocked_bots = []
         if data.get("blocked_bots"):
             for line in data["blocked_bots"].split("\n"):
@@ -1973,7 +1974,7 @@ class ConfigWizard(metaclass=Singleton):
                         blocked_bots.append(int(line))
                     except ValueError:
                         pass
-        
+
         bot_ids = []
         if filter_specific_ids and data.get("bot_ids"):
             for line in data["bot_ids"].split("\n"):
@@ -1983,7 +1984,7 @@ class ConfigWizard(metaclass=Singleton):
                         bot_ids.append(int(line))
                     except ValueError:
                         pass
-        
+
         channel_ids = []
         if filter_specific_ids and data.get("channel_ids"):
             for line in data["channel_ids"].split("\n"):
@@ -1993,7 +1994,7 @@ class ConfigWizard(metaclass=Singleton):
                         channel_ids.append(int(line))
                     except ValueError:
                         pass
-        
+
         group_ids = []
         if filter_specific_ids and data.get("group_ids"):
             for line in data["group_ids"].split("\n"):
@@ -2014,21 +2015,21 @@ class ConfigWizard(metaclass=Singleton):
                         forward_targets.append(int(target))
                     except ValueError:
                         pass
-        
+
         max_executions = None
         if data.get("max_executions"):
             try:
                 max_executions = int(data["max_executions"])
             except (ValueError, TypeError):
                 max_executions = None
-        
+
         max_download_size = None
         if data.get("max_download_size"):
             try:
                 max_download_size = float(data["max_download_size"])
             except (ValueError, TypeError):
                 max_download_size = None
-        
+
         return ButtonConfig(
             button_keyword=data.get("button_keyword", ""),
             mode=MonitorMode(data.get("mode", "manual")),
@@ -2051,11 +2052,11 @@ class ConfigWizard(metaclass=Singleton):
             execution_mode=data.get('execution_mode', 'merge'),
             log_file=data.get("log_file") if log_to_file else None
         )
-    
+
     def _create_image_button_config(self, data: Dict[str, Any]):
         chats_str = data.get("chats", "")
         chat_ids = []
-        
+
         if chats_str:
             for chat in chats_str.split(","):
                 chat = chat.strip()
@@ -2064,7 +2065,7 @@ class ConfigWizard(metaclass=Singleton):
                         chat_ids.append(int(chat))
                     except ValueError:
                         pass
-        
+
         auto_forward = data.get("auto_forward") in (True, "on", "true", "1")
         email_notify = data.get("email_notify") in (True, "on", "true", "1")
         enhanced_forward = data.get("enhanced_forward") in (True, "on", "true", "1")
@@ -2072,18 +2073,18 @@ class ConfigWizard(metaclass=Singleton):
         filter_users = data.get("filter_users") in (True, "on", "true", "1")
         log_to_file = data.get("log_to_file") in (True, "on", "true", "1")
         filter_specific_ids = data.get("filter_specific_ids") in (True, "on", "true", "1")
-        
+
         button_keywords = []
         if data.get("button_keywords"):
             button_keywords = [kw.strip() for kw in data["button_keywords"].split(",") if kw.strip()]
-        
+
         confidence_threshold = 0.7
         if data.get("confidence_threshold"):
             try:
                 confidence_threshold = float(data["confidence_threshold"])
             except (ValueError, TypeError):
                 confidence_threshold = 0.7
-        
+
         users = []
         if filter_users and data.get("users"):
             for line in data["users"].split("\n"):
@@ -2093,7 +2094,7 @@ class ConfigWizard(metaclass=Singleton):
                         users.append(int(line))
                     except ValueError:
                         users.append(line)
-        
+
         blocked_users = [line.strip() for line in data.get("blocked_users", "").split("\n") if line.strip()]
         blocked_channels = []
         if data.get("blocked_channels"):
@@ -2104,7 +2105,7 @@ class ConfigWizard(metaclass=Singleton):
                         blocked_channels.append(int(line))
                     except ValueError:
                         pass
-        
+
         blocked_bots = []
         if data.get("blocked_bots"):
             for line in data["blocked_bots"].split("\n"):
@@ -2114,7 +2115,7 @@ class ConfigWizard(metaclass=Singleton):
                         blocked_bots.append(int(line))
                     except ValueError:
                         pass
-        
+
         bot_ids = []
         if filter_specific_ids and data.get("bot_ids"):
             for line in data["bot_ids"].split("\n"):
@@ -2124,7 +2125,7 @@ class ConfigWizard(metaclass=Singleton):
                         bot_ids.append(int(line))
                     except ValueError:
                         pass
-        
+
         channel_ids = []
         if filter_specific_ids and data.get("channel_ids"):
             for line in data["channel_ids"].split("\n"):
@@ -2134,7 +2135,7 @@ class ConfigWizard(metaclass=Singleton):
                         channel_ids.append(int(line))
                     except ValueError:
                         pass
-        
+
         group_ids = []
         if filter_specific_ids and data.get("group_ids"):
             for line in data["group_ids"].split("\n"):
@@ -2155,21 +2156,21 @@ class ConfigWizard(metaclass=Singleton):
                         forward_targets.append(int(target))
                     except ValueError:
                         pass
-        
+
         max_executions = None
         if data.get("max_executions"):
             try:
                 max_executions = int(data["max_executions"])
             except (ValueError, TypeError):
                 max_executions = None
-        
+
         max_download_size = None
         if data.get("max_download_size"):
             try:
                 max_download_size = float(data["max_download_size"])
             except (ValueError, TypeError):
                 max_download_size = None
-        
+
         return ImageButtonConfig(
             ai_prompt=data.get("image_ai_prompt", "分析图片和按钮内容，判断是否需要点击某个按钮"),
             button_keywords=button_keywords,
@@ -2193,7 +2194,7 @@ class ConfigWizard(metaclass=Singleton):
             execution_mode=data.get('execution_mode', 'merge'),
             log_file=data.get("log_file") if log_to_file else None
         )
-    
+
     def _create_all_messages_config(self, data: Dict[str, Any]) -> AllMessagesConfig:
         chat_id = 0
         if data.get("chat_id"):
@@ -2201,18 +2202,18 @@ class ConfigWizard(metaclass=Singleton):
                 chat_id = int(data["chat_id"])
             except ValueError:
                 pass
-        
+
         auto_forward = data.get("auto_forward") in (True, "on", "true", "1")
         email_notify = data.get("email_notify") in (True, "on", "true", "1")
         enhanced_forward = data.get("enhanced_forward") in (True, "on", "true", "1")
         reply_enabled = data.get("reply_enabled") in (True, "on", "true", "1")
         filter_users = data.get("filter_users") in (True, "on", "true", "1")
         log_to_file = data.get("log_to_file") in (True, "on", "true", "1")
-        
+
         reply_texts = []
         if reply_enabled and data.get("reply_texts"):
             reply_texts = [line.strip() for line in data["reply_texts"].split("\n") if line.strip()]
-        
+
         users = []
         if filter_users and data.get("users"):
             for line in data["users"].split("\n"):
@@ -2222,7 +2223,7 @@ class ConfigWizard(metaclass=Singleton):
                         users.append(int(line))
                     except ValueError:
                         users.append(line)
-        
+
         blocked_users = [line.strip() for line in data.get("blocked_users", "").split("\n") if line.strip()]
         blocked_channels = []
         if data.get("blocked_channels"):
@@ -2233,7 +2234,7 @@ class ConfigWizard(metaclass=Singleton):
                         blocked_channels.append(int(line))
                     except ValueError:
                         pass
-        
+
         blocked_bots = []
         if data.get("blocked_bots"):
             for line in data["blocked_bots"].split("\n"):
@@ -2243,7 +2244,7 @@ class ConfigWizard(metaclass=Singleton):
                         blocked_bots.append(int(line))
                     except ValueError:
                         pass
-        
+
         forward_targets = []
         if auto_forward and data.get("forward_targets"):
             targets_str = data.get("forward_targets", "")
@@ -2254,21 +2255,21 @@ class ConfigWizard(metaclass=Singleton):
                         forward_targets.append(int(target))
                     except ValueError:
                         pass
-        
+
         max_executions = None
         if data.get("max_executions"):
             try:
                 max_executions = int(data["max_executions"])
             except (ValueError, TypeError):
                 max_executions = None
-        
+
         max_download_size = None
         if data.get("max_download_size"):
             try:
                 max_download_size = float(data["max_download_size"])
             except (ValueError, TypeError):
                 max_download_size = None
-        
+
         reply_delay_min = 0
         reply_delay_max = 0
         if reply_enabled:
@@ -2278,7 +2279,7 @@ class ConfigWizard(metaclass=Singleton):
             except (ValueError, TypeError):
                 reply_delay_min = 0
                 reply_delay_max = 5
-        
+
         return AllMessagesConfig(
             chat_id=chat_id,
             chats=[chat_id] if chat_id else [],
@@ -2303,22 +2304,22 @@ class ConfigWizard(metaclass=Singleton):
             execution_mode=data.get('execution_mode', 'merge'),
             log_file=data.get("log_file") if log_to_file else None
         )
-    
+
     def _cleanup_session(self, session_id: str):
         if session_id in self.sessions:
             del self.sessions[session_id]
-    
+
     def force_new_session(self, session_id: str) -> Dict[str, Any]:
         self._cleanup_session(session_id)
         self.logger.info(f"强制创建新会话: {session_id}")
-        
+
         return self.start_wizard(session_id)
-    
+
     def get_available_accounts(self) -> List[Dict[str, str]]:
         from core import AccountManager
         account_manager = AccountManager()
         accounts = account_manager.list_accounts()
-        
+
         return [
             {
                 "id": acc.account_id,
@@ -2328,7 +2329,7 @@ class ConfigWizard(metaclass=Singleton):
             }
             for acc in accounts
         ]
-    
+
     def validate_email_list(self, email_text: str) -> Dict[str, Any]:
         import re
         
