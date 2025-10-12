@@ -1424,8 +1424,36 @@
                     allRadios.forEach(radio => {
                         radio.addEventListener('change', toggleField);
                     });
+                    
+                    const selectElement = document.querySelector(`[name="${conditionField}"]`);
+                    if (selectElement && selectElement.tagName === 'SELECT') {
+                        selectElement.addEventListener('change', toggleField);
+                    }
 
                     toggleField();
+                }
+                
+                if (field.name === 'button_keyword') {
+                    const setupButtonKeywordValidation = () => {
+                        const modeSelect = document.querySelector('[name="mode"]');
+                        const buttonKeywordInput = document.querySelector('[name="button_keyword"]');
+                        
+                        if (modeSelect && buttonKeywordInput) {
+                            const updateRequired = () => {
+                                const mode = modeSelect.value;
+                                if (mode === 'manual') {
+                                    buttonKeywordInput.setAttribute('required', '');
+                                } else if (mode === 'ai') {
+                                    buttonKeywordInput.removeAttribute('required');
+                                }
+                            };
+                            
+                            modeSelect.addEventListener('change', updateRequired);
+                            updateRequired();
+                        }
+                    };
+                    
+                    setTimeout(setupButtonKeywordValidation, 300);
                 }
             });
         }, 200);
@@ -1467,6 +1495,13 @@
                 data[checkbox.name] = checkbox.checked;
             }
         });
+        
+        const mode = data['mode'];
+        const buttonKeyword = data['button_keyword'];
+        if (mode === 'manual' && (!buttonKeyword || !buttonKeyword.trim())) {
+            showNotification('手动模式下必须填写按钮关键词', 'error');
+            return;
+        }
 
         try {
             console.log('提交步骤，session_id:', currentSession);
