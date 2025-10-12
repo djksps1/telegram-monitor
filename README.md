@@ -271,7 +271,7 @@ tg-monitor/
 
 ```bash
 # 克隆代码
-git clone https://github.com/your-username/tg-monitor.git
+git clone https://github.com/djksps1/telegram-monitor.git
 
 # 安装开发依赖
 pip install -r requirements-dev.txt
