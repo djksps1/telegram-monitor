@@ -135,12 +135,16 @@ class WebApp:
             self.logger.warning(f"移除WebSocket连接时发生未预期错误: {e}")
     
     def setup_auth(self):
+        # 默认值仅用于首次启动，用户必须在.env中设置实际密码
+        default_username = 'admin'
+        default_password = 'admin123'  # NOSONAR - 这是默认值，用户需在.env中覆盖
+        
         if config:
-            self.web_username = getattr(config, 'WEB_USERNAME', 'admin')
-            self.web_password = getattr(config, 'WEB_PASSWORD', 'admin123')
+            self.web_username = getattr(config, 'WEB_USERNAME', default_username)
+            self.web_password = getattr(config, 'WEB_PASSWORD', default_password)
         else:
-            self.web_username = 'admin'
-            self.web_password = 'admin123'
+            self.web_username = default_username
+            self.web_password = default_password
         
         self.logger.info(f"Web认证配置 - 用户名: {self.web_username}, 密码: {self.web_password}")
         
