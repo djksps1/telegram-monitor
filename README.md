@@ -292,6 +292,21 @@ python3 web_app_launcher.py --public
 
 MIT License - 详见 [LICENSE](LICENSE) 文件
 
+## ⚠️ 安全注意事项
+
+### 强烈建议
+- 🔐 **修改默认密码** - 首次使用时务必在.env中设置强密码
+- 🔒 **保护敏感文件** - 确保.env和*.session文件不被提交到Git
+- 🌐 **限制网络访问** - 生产环境建议设置 `WEB_HOST=127.0.0.1`
+- 🔑 **定期更换密钥** - 定期更换API密钥和Web登录密码
+
+### 文件权限
+```bash
+# 设置敏感文件权限（Linux/Mac）
+chmod 600 .env
+chmod 600 *.session
+```
+
 ## ⚠️ 免责声明
 
 - 本工具仅供学习和合法用途使用
