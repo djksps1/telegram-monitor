@@ -993,7 +993,7 @@ class WebApp:
                                 archived_count += 1
                                 if max_archived and archived_count >= max_archived:
                                     break
-                        self.logger.info(f"额外获取 {archived_count} 个归档对话")
+                        self.logger.debug(f"额外获取 {archived_count} 个归档对话")
                     except Exception as archived_error:
                         self.logger.debug(f"获取归档对话失败: {archived_error}")
                     
@@ -1135,7 +1135,7 @@ class WebApp:
                         start_index = (page - 1) * limit
                         end_index = start_index + limit
                         paged_channels = channels[start_index:end_index]
-                        self.logger.info(f"分页模式：返回第{page}页 {len(paged_channels)} 个")
+                        self.logger.debug(f"分页模式：返回第{page}页 {len(paged_channels)} 个")
                     
                     type_counts = {}
                     for channel in channels:
@@ -1154,7 +1154,7 @@ class WebApp:
                             "type_counts": type_counts
                         }
                     else:
-                        self.logger.info(f"返回第{page}页 {len(paged_channels)} 个")
+                        self.logger.debug(f"返回第{page}页 {len(paged_channels)} 个")
                         return {
                             "success": True, 
                             "channels": paged_channels,
@@ -1409,7 +1409,7 @@ class WebApp:
                                     engine.scheduler.remove_job(job_id)
                                     self.logger.info(f"移除旧的定时任务: {job_id}")
                                 except Exception as remove_error:
-                                    self.logger.debug(f"移除旧任务失败（可能不存在）: {remove_error}")
+                                    self.logger.info(f"移除旧任务失败（可能不存在）: {remove_error}")
                                 
                                 if msg.get('active', True) and new_cron:
                                     try:

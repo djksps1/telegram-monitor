@@ -72,7 +72,7 @@ class ConfigWizard(metaclass=Singleton):
         
         self._start_session_cleanup()
         
-        self.logger.info("配置向导初始化完成")
+        self.logger.debug("配置向导初始化完成")
     
     def _start_session_cleanup(self):
         import threading
@@ -900,7 +900,7 @@ class ConfigWizard(metaclass=Singleton):
     def start_wizard(self, session_id: str) -> Dict[str, Any]:
         try:
             self.logger.info(f"开始向导，session_id: {session_id}")
-            self.logger.info(f"当前会话数: {len(self.sessions)}")
+            self.logger.debug(f"当前会话数: {len(self.sessions)}")
             
             session = WizardSession(
                 session_id=session_id,
@@ -911,7 +911,7 @@ class ConfigWizard(metaclass=Singleton):
             )
             
             self.sessions[session_id] = session
-            self.logger.info(f"会话已创建，当前会话: {list(self.sessions.keys())}")
+            self.logger.debug(f"会话已创建，当前会话: {list(self.sessions.keys())}")
             
             return self.get_step_data(session_id)
             
@@ -925,12 +925,12 @@ class ConfigWizard(metaclass=Singleton):
     
     def start_wizard_edit_mode(self, session_id: str, edit_key: str, edit_config: Dict[str, Any]) -> Dict[str, Any]:
         try:
-            self.logger.info(f"编辑模式启动向导，session_id: {session_id}, edit_key: {edit_key}")
+            self.logger.debug(f"编辑模式启动向导，session_id: {session_id}, edit_key: {edit_key}")
             
             collected_data = {}
             if edit_config:
                 collected_data = self._config_to_wizard_data(edit_config, edit_key)
-                self.logger.info(f"预填充数据: {collected_data}")
+                self.logger.debug(f"预填充数据: {collected_data}")
             
             monitor_type = collected_data.get('monitor_type', 'keyword')
             
@@ -957,7 +957,7 @@ class ConfigWizard(metaclass=Singleton):
             
             self.sessions[session_id] = session
             
-            self.logger.info(f"编辑模式会话初始化完成，会话数据: {collected_data}")
+            self.logger.debug(f"编辑模式会话初始化完成，会话数据: {collected_data}")
             self.logger.info(f"其中 monitor_type={collected_data.get('monitor_type')}, account_id={collected_data.get('account_id')}")
             
             return self.get_step_data(session_id)
@@ -1265,7 +1265,7 @@ class ConfigWizard(metaclass=Singleton):
     
     def process_step(self, session_id: str, step_data: Dict[str, Any]) -> Dict[str, Any]:
         try:
-            self.logger.info(f"处理步骤，session_id: {session_id}")
+            self.logger.debug(f"处理步骤，session_id: {session_id}")
             
             if session_id not in self.sessions:
                 self.logger.warning(f"会话 {session_id} 不存在")
