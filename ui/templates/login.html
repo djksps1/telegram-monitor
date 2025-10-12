@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - TG监控系统</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <style>
+        :root {
+            --primary-color: #5B5FDE;
+            --primary-dark: #4A4EBD;
+            --primary-light: #7B7FEE;
+            --primary-gradient: linear-gradient(135deg, #5B5FDE 0%, #7B7FEE 100%);
+            
+            --bg-primary: #0F0F1E;
+            --bg-secondary: #1A1A2E;
+            --bg-card: #1E1E3A;
+            --bg-hover: #2A2A4A;
+            
+            --text-primary: #FFFFFF;
+            --text-secondary: #A0A0C0;
+            --text-muted: #6B6B8B;
+            
+            --border-color: rgba(255, 255, 255, 0.1);
+            
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.3);
+            --shadow-glow: 0 0 40px rgba(91, 95, 222, 0.4);
+            
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --radius-full: 9999px;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .bg-animation {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            overflow: hidden;
+        }
+        
+        .bg-gradient {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.3;
+            animation: float 20s infinite ease-in-out;
+        }
+        
+        .bg-gradient-1 {
+            background: var(--primary-gradient);
+            top: -200px;
+            left: -200px;
+        }
+        
+        .bg-gradient-2 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            bottom: -200px;
+            right: -200px;
+            animation-delay: -10s;
+        }
+        
+        .bg-gradient-3 {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation-delay: -5s;
+        }
+        
+        @keyframes float {
+            0%, 100% {
+                transform: translate(0, 0) scale(1);
+            }
+            25% {
+                transform: translate(50px, -50px) scale(1.1);
+            }
+            50% {
+                transform: translate(-30px, 30px) scale(0.9);
+            }
+            75% {
+                transform: translate(-50px, -30px) scale(1.05);
+            }
+        }
+        
+        .bg-grid {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(91, 95, 222, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(91, 95, 222, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: grid-move 10s linear infinite;
+        }
+        
+        @keyframes grid-move {
+            0% {
+                transform: translate(0, 0);
+            }
+            100% {
+                transform: translate(50px, 50px);
+            }
+        }
+        
+        .login-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 480px;
+            padding: 20px;
+        }
+        
+        .login-logo {
+            text-align: center;
+            margin-bottom: 40px;
+            animation: fadeInDown 0.8s ease;
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .logo-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: var(--primary-gradient);
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            color: white;
+            box-shadow: var(--shadow-glow);
+        }
+        
+        .logo-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        
+        .logo-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        .login-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: 40px;
+            backdrop-filter: blur(20px);
+            box-shadow: var(--shadow-lg);
+            animation: fadeInUp 0.8s ease;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        
+        .login-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        
+        .login-description {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        .form-group {
+            margin-bottom: 24px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        
+        .input-group {
+            position: relative;
+        }
+        
+        .input-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 18px;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 14px 16px 14px 48px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(91, 95, 222, 0.1);
+            background: var(--bg-hover);
+        }
+        
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+        
+        .form-remember {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+        
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        
+        .checkbox-wrapper input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+        }
+        
+        .checkbox-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            user-select: none;
+        }
+        
+
+        
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary-gradient);
+            border: none;
+            border-radius: var(--radius-md);
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-glow);
+        }
+        
+        .btn-login:active {
+            transform: translateY(0);
+        }
+        
+        .btn-login::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .btn-login:active::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+
+        
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #EF4444;
+            display: none;
+            animation: shake 0.5s ease;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        
+        .loading {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .btn-login.loading-state .btn-text {
+            opacity: 0;
+        }
+        
+        .btn-login.loading-state .loading {
+            display: inline-block;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation">
+        <div class="bg-grid"></div>
+        <div class="bg-gradient bg-gradient-1"></div>
+        <div class="bg-gradient bg-gradient-2"></div>
+        <div class="bg-gradient bg-gradient-3"></div>
+    </div>
+    
+    <div class="login-container">
+        <div class="login-logo">
+            <div class="logo-icon">
+                <i class="bi bi-broadcast"></i>
+            </div>
+            <h1 class="logo-title">TG监控系统</h1>
+            <p class="logo-subtitle">实时监控和管理您的Telegram账号</p>
+        </div>
+        
+        <div class="login-card">
+            <div class="login-header">
+                <h2 class="login-title">欢迎回来</h2>
+                <p class="login-description">请登录您的账号以继续</p>
+            </div>
+            
+            <div class="error-message" id="errorMessage">
+                <i class="bi bi-exclamation-circle"></i>
+                <span id="errorText">用户名或密码错误</span>
+            </div>
+            
+            <form id="loginForm" method="POST" action="/login">
+                <div class="form-group">
+                    <label class="form-label">用户名</label>
+                    <div class="input-group">
+                        <i class="bi bi-person input-icon"></i>
+                        <input type="text" 
+                               name="username" 
+                               class="form-input" 
+                               placeholder="请输入用户名" 
+                               required 
+                               autofocus>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <div class="input-group">
+                        <i class="bi bi-lock input-icon"></i>
+                        <input type="password" 
+                               name="password" 
+                               class="form-input" 
+                               placeholder="请输入密码" 
+                               required>
+                    </div>
+                </div>
+                
+                <div class="form-remember">
+                    <label class="checkbox-wrapper">
+                        <input type="checkbox" name="remember">
+                        <span class="checkbox-label">记住我</span>
+                    </label>
+                </div>
+                
+                <button type="submit" class="btn-login" id="loginBtn">
+                    <span class="btn-text">登录</span>
+                    <div class="loading"></div>
+                </button>
+            </form>
+            
+            
+            
+
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const btn = document.getElementById('loginBtn');
+            const errorMsg = document.getElementById('errorMessage');
+            
+            btn.classList.add('loading-state');
+            btn.disabled = true;
+            errorMsg.classList.remove('show');
+            
+            const formData = new FormData(this);
+            
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    window.location.href = '/';
+                } else {
+                    const data = await response.json();
+                    document.getElementById('errorText').textContent = data.detail || '登录失败，请重试';
+                    errorMsg.classList.add('show');
+                }
+            } catch (error) {
+                document.getElementById('errorText').textContent = '网络错误，请检查连接';
+                errorMsg.classList.add('show');
+            } finally {
+                btn.classList.remove('loading-state');
+                btn.disabled = false;
+            }
+        });
+        
+        document.querySelectorAll('.form-input').forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.querySelector('.input-icon').style.color = 'var(--primary-color)';
+            });
+            
+            input.addEventListener('blur', function() {
+                this.parentElement.querySelector('.input-icon').style.color = 'var(--text-muted)';
+            });
+        });
+    </script>
+</body>
+</html>

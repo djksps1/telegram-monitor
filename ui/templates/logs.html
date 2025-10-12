@@ -1,0 +1,605 @@
+{% extends "base.html" %}
+
+{% block title %}程序日志 - TG监控系统{% endblock %}
+{% block page_title %}程序日志{% endblock %}
+{% block page_subtitle %}实时查看系统运行日志{% endblock %}
+
+{% block extra_css %}
+<style>
+    .logs-document {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .logs-toolbar {
+        background: var(--bg-secondary);
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .logs-info {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+
+    .logs-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .log-filter-btn {
+        padding: 6px 12px;
+        border: 1px solid var(--border-color);
+        background: var(--bg-card);
+        color: var(--text-secondary);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        font-size: 13px;
+        transition: all var(--transition-base);
+    }
+
+    .log-filter-btn.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+
+    .log-filter-btn.error.active { background: var(--danger-color); border-color: var(--danger-color); }
+    .log-filter-btn.warning.active { background: var(--warning-color); border-color: var(--warning-color); }
+    .log-filter-btn.info.active { background: var(--info-color); border-color: var(--info-color); }
+    .log-filter-btn.debug.active { background: var(--text-muted); border-color: var(--text-muted); }
+
+    .logs-viewer {
+        height: 70vh;
+        overflow-y: auto;
+        background: white;
+        color: var(--text-primary);
+        font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+        font-size: 14px;
+        line-height: 1.6;
+        border-radius: 0;
+    }
+
+    .log-entry {
+        padding: 8px 20px;
+        border-bottom: 1px solid var(--border-color);
+        transition: background-color var(--transition-base);
+    }
+
+    .log-entry:hover {
+        background: var(--bg-hover);
+    }
+
+    .log-entry:last-child {
+        border-bottom: none;
+    }
+
+    .log-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 4px;
+        font-size: 13px;
+    }
+
+    .log-time {
+        color: var(--text-muted);
+        font-weight: 500;
+        min-width: 180px;
+    }
+
+    .log-badge {
+        padding: 2px 8px;
+        border-radius: var(--radius-sm);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        min-width: 50px;
+        text-align: center;
+    }
+
+    .log-badge.error {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--danger-color);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .log-badge.warning {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning-color);
+        border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .log-badge.info {
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--info-color);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    .log-badge.debug {
+        background: rgba(156, 163, 175, 0.1);
+        color: var(--text-muted);
+        border: 1px solid rgba(156, 163, 175, 0.2);
+    }
+
+    .log-source {
+        color: var(--text-secondary);
+        font-weight: 500;
+        min-width: 120px;
+    }
+
+    .log-content {
+        color: var(--text-primary);
+        font-size: 14px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+
+    .log-empty {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-muted);
+    }
+
+    .log-empty-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    .log-summary {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        font-size: 13px;
+    }
+
+    .log-count {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .log-count-badge {
+        background: var(--bg-tertiary);
+        padding: 2px 6px;
+        border-radius: var(--radius-sm);
+        font-weight: 600;
+        min-width: 24px;
+        text-align: center;
+    }
+
+    .loading-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-secondary);
+        font-size: 13px;
+    }
+
+    .loading-spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--border-color);
+        border-top: 2px solid var(--primary-color);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="logs-document">
+    <div class="logs-toolbar">
+        <div class="logs-info">
+            <div class="log-summary">
+                <div class="log-count">
+                    <span>总计:</span>
+                    <span class="log-count-badge" id="total-logs">0</span>
+                </div>
+                <div class="log-count" style="color: var(--danger-color);">
+                    <span>错误:</span>
+                    <span class="log-count-badge" id="error-count">0</span>
+                </div>
+                <div class="log-count" style="color: var(--warning-color);">
+                    <span>警告:</span>
+                    <span class="log-count-badge" id="warning-count">0</span>
+                </div>
+                <div class="log-count" style="color: var(--info-color);">
+                    <span>信息:</span>
+                    <span class="log-count-badge" id="info-count">0</span>
+                </div>
+            </div>
+            <div class="loading-indicator" id="loading-indicator" style="display: none;">
+                <div class="loading-spinner"></div>
+                <span>更新中...</span>
+            </div>
+        </div>
+        
+        <div class="logs-actions">
+            <button class="log-filter-btn active" data-level="all">全部</button>
+            <button class="log-filter-btn error" data-level="error">错误</button>
+            <button class="log-filter-btn warning" data-level="warning">警告</button>
+            <button class="log-filter-btn info" data-level="info">信息</button>
+            <button class="log-filter-btn debug" data-level="debug">调试</button>
+            
+            <div style="width: 1px; height: 20px; background: var(--border-color); margin: 0 8px;"></div>
+            
+            <button class="btn btn-outline-danger btn-sm" onclick="clearLogs()" title="清空日志">
+                <i class="bi bi-trash"></i> 清空
+            </button>
+            <button class="btn btn-outline-primary btn-sm" onclick="downloadLogs()" title="下载日志">
+                <i class="bi bi-download"></i> 下载
+            </button>
+            <button class="btn btn-outline-success btn-sm" onclick="refreshLogs()" title="刷新">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+    </div>
+    
+    <div class="logs-viewer" id="logs-viewer">
+        <div class="log-empty">
+            <div class="log-empty-icon">
+                <i class="bi bi-file-text"></i>
+            </div>
+            <div>正在加载日志...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let allLogs = [];
+    let filteredLogs = [];
+    let currentFilter = 'all';
+    let autoScroll = true;
+    let logUpdateInterval = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadLogs();
+        startAutoRefresh();
+        setupEventListeners();
+    });
+
+    function setupEventListeners() {
+        document.querySelectorAll('.log-filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.log-filter-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentFilter = this.dataset.level;
+                filterLogs();
+            });
+        });
+
+        const logsViewer = document.getElementById('logs-viewer');
+        logsViewer.addEventListener('scroll', function() {
+            const isAtBottom = this.scrollTop + this.clientHeight >= this.scrollHeight - 10;
+            if (!isAtBottom && autoScroll) {
+                autoScroll = false;
+            } else if (isAtBottom && !autoScroll) {
+                autoScroll = true;
+            }
+        });
+    }
+
+    async function loadLogs() {
+        try {
+            const response = await fetch('/api/logs?limit=1000');
+            const data = await response.json();
+            
+            if (data.success) {
+                allLogs = data.logs || [];
+                updateLogStats();
+                filterLogs();
+            } else {
+                throw new Error(data.message || '获取日志失败');
+            }
+        } catch (error) {
+            console.error('加载日志失败:', error);
+            document.getElementById('logs-viewer').innerHTML = `
+                <div style="color: var(--danger-color); text-align: center; padding: 20px;">加载日志失败: ${error.message}</div>
+            `;
+        }
+    }
+
+    function filterLogs() {
+        if (currentFilter === 'all') {
+            filteredLogs = [...allLogs];
+        } else {
+            filteredLogs = allLogs.filter(log => 
+                log.level.toLowerCase() === currentFilter.toLowerCase()
+            );
+        }
+        renderLogs();
+    }
+
+    function renderLogs() {
+        const container = document.getElementById('logs-viewer');
+        
+        if (filteredLogs.length === 0) {
+            container.innerHTML = `
+                <div class="log-empty">
+                    <div class="log-empty-icon">
+                        <i class="bi bi-file-text"></i>
+                    </div>
+                    <div>暂无日志记录</div>
+                </div>
+            `;
+            return;
+        }
+
+        const logsHtml = filteredLogs.map(log => {
+            if (log.message && (
+                log.message.includes('GET /api/') ||
+                log.message.includes('POST /api/') ||
+                log.message.includes('PUT /api/') ||
+                log.message.includes('DELETE /api/') ||
+                log.message.includes('HTTP/1.1') ||
+                log.message.includes('获取日志') ||
+                log.message.includes('读取日志文件') ||
+                log.source === 'uvicorn' ||
+                log.source === 'uvicorn.access'
+            )) {
+                return '';
+            }
+            
+            const timestamp = new Date(log.timestamp).toLocaleString('zh-CN', {
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+
+            return `
+                <div class="log-entry">
+                    <div class="log-header">
+                        <span class="log-time">${timestamp}</span>
+                        <span class="log-badge ${log.level.toLowerCase()}">${log.level}</span>
+                        <span class="log-source">${log.source}</span>
+                    </div>
+                    <div class="log-content">${log.message}</div>
+                </div>
+            `;
+        }).filter(html => html).join('');
+
+        container.innerHTML = logsHtml || `
+            <div class="log-empty">
+                <div class="log-empty-icon">
+                    <i class="bi bi-file-text"></i>
+                </div>
+                <div>暂无符合条件的日志</div>
+            </div>
+        `;
+        
+        if (autoScroll) {
+            container.scrollTop = container.scrollHeight;
+        }
+    }
+
+    function updateLogStats() {
+        const total = allLogs.length;
+        const errorCount = allLogs.filter(log => log.level === 'ERROR').length;
+        const warningCount = allLogs.filter(log => log.level === 'WARNING').length;
+        const infoCount = allLogs.filter(log => log.level === 'INFO').length;
+
+        document.getElementById('total-logs').textContent = total;
+        document.getElementById('error-count').textContent = errorCount;
+        document.getElementById('warning-count').textContent = warningCount;
+        document.getElementById('info-count').textContent = infoCount;
+    }
+
+    function toggleAutoScroll() {
+        autoScroll = !autoScroll;
+        updateAutoScrollIndicator();
+        
+        if (autoScroll) {
+            const container = document.getElementById('logs-viewer');
+            container.scrollTop = container.scrollHeight;
+        }
+    }
+
+    function updateAutoScrollIndicator() {
+        const btn = document.getElementById('auto-scroll-btn');
+        const indicator = document.getElementById('auto-scroll-indicator');
+        
+        if (autoScroll) {
+            btn.className = 'btn btn-success btn-sm';
+            btn.innerHTML = '<i class="bi bi-arrow-down-circle-fill"></i>';
+            indicator.style.display = 'block';
+        } else {
+            btn.className = 'btn btn-secondary btn-sm';
+            btn.innerHTML = '<i class="bi bi-arrow-down-circle"></i>';
+            indicator.style.display = 'none';
+        }
+    }
+
+    function startAutoRefresh() {
+        if (logUpdateInterval) {
+            clearInterval(logUpdateInterval);
+        }
+        
+        logUpdateInterval = setInterval(async () => {
+            try {
+                if (document.hidden) {
+                    return;
+                }
+                
+                const response = await fetch(`/api/logs?since=${getLastLogTime()}&limit=50`);
+                const data = await response.json();
+                
+                if (data.success && data.logs && data.logs.length > 0) {
+                    const existingTimestamps = new Set(allLogs.map(log => log.timestamp));
+                    const newLogs = data.logs.filter(log => !existingTimestamps.has(log.timestamp));
+                    
+                    if (newLogs.length > 0) {
+                        allLogs.push(...newLogs);
+                        
+                        if (allLogs.length > 1000) {
+                            allLogs = allLogs.slice(-1000);
+                        }
+                        
+                        updateLogStats();
+                        filterLogs();
+                    }
+                }
+            } catch (error) {
+                console.error('自动刷新日志失败:', error);
+            }
+        }, 5000);
+    }
+
+    function getLastLogTime() {
+        if (allLogs.length === 0) {
+            return new Date(Date.now() - 60000).toISOString();
+        }
+        return allLogs[allLogs.length - 1].timestamp;
+    }
+
+    function refreshLogs() {
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const refreshBtn = document.querySelector('button[onclick="refreshLogs()"]');
+        
+        if (loadingIndicator) {
+            loadingIndicator.style.display = 'flex';
+        }
+        
+        if (refreshBtn) {
+            refreshBtn.disabled = true;
+            refreshBtn.style.opacity = '0.5';
+        }
+        
+        loadLogs().then(() => {
+            showNotification('日志已刷新', 'success');
+        }).catch((error) => {
+            showNotification('刷新失败: ' + error.message, 'error');
+        }).finally(() => {
+            if (loadingIndicator) {
+                loadingIndicator.style.display = 'none';
+            }
+            
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.style.opacity = '1';
+            }
+        });
+    }
+
+    async function clearLogs() {
+        if (!confirm('确定要清空所有日志吗？这将删除服务器上的日志文件内容，此操作不可恢复。')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/logs/clear', {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                allLogs = [];
+                filteredLogs = [];
+                
+                if (logUpdateInterval) {
+                    clearInterval(logUpdateInterval);
+                    logUpdateInterval = null;
+                }
+                
+                renderLogs();
+                updateLogStats();
+                showNotification('日志已清空', 'success');
+                
+                setTimeout(() => {
+                    startAutoRefresh();
+                }, 3000);
+                
+            } else {
+                throw new Error('清空日志失败');
+            }
+        } catch (error) {
+            console.error('清空日志失败:', error);
+            showNotification('清空日志失败: ' + error.message, 'error');
+        }
+    }
+
+    async function downloadLogs() {
+        try {
+            const response = await fetch('/api/logs/download');
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `tg_monitor_logs_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')}.log`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                showNotification('日志文件下载成功', 'success');
+            } else {
+                throw new Error('下载失败');
+            }
+        } catch (error) {
+            console.error('下载日志失败:', error);
+            showNotification('下载日志失败: ' + error.message, 'error');
+        }
+    }
+
+    function showNotification(message, type = 'info') {
+        const colors = {
+            'success': '#10b981',
+            'error': '#ef4444', 
+            'warning': '#f59e0b',
+            'info': '#3b82f6'
+        };
+        
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${colors[type] || colors.info};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 10000;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 3000);
+    }
+
+    window.addEventListener('beforeunload', function() {
+        if (logUpdateInterval) {
+            clearInterval(logUpdateInterval);
+        }
+    });
+</script>
+{% endblock %}

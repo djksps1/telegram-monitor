@@ -1,0 +1,630 @@
+{% extends "base.html" %}
+
+{% block title %}配置管理 - TG监控系统{% endblock %}
+
+{% block page_title %}配置管理{% endblock %}
+{% block page_subtitle %}导入、导出和管理系统配置{% endblock %}
+
+{% block extra_css %}
+<style>
+    .config-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+    
+    .config-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+        transition: all var(--transition-base);
+    }
+    
+    .config-card:hover {
+        border-color: var(--primary-color);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .config-card-icon {
+        width: 56px;
+        height: 56px;
+        background: var(--primary-gradient);
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+        margin-bottom: 16px;
+    }
+    
+    .config-card.export .config-card-icon {
+        background: var(--success-gradient);
+    }
+    
+    .config-card.import .config-card-icon {
+        background: var(--info-gradient);
+    }
+    
+    .config-card-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+    
+    .config-card-description {
+        font-size: 14px;
+        color: var(--text-secondary);
+        line-height: 1.5;
+        margin-bottom: 20px;
+    }
+    
+    .account-select-wrapper {
+        margin-bottom: 16px;
+    }
+    
+    .account-select-wrapper label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
+        color: var(--text-secondary);
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .account-select-wrapper label::before {
+        content: "👤";
+        font-size: 14px;
+    }
+    
+    .account-select-wrapper .form-select {
+        width: 100%;
+        height: 44px;
+        padding: 0 16px;
+        font-size: 14px;
+        font-weight: 500;
+        background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-tertiary) 100%);
+        border: 2px solid var(--border-color);
+        border-radius: var(--radius-md);
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .account-select-wrapper .form-select:hover {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(91, 95, 222, 0.1);
+    }
+    
+    .account-select-wrapper .form-select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 4px rgba(91, 95, 222, 0.15);
+    }
+    
+    .import-mode-wrapper {
+        margin-bottom: 16px;
+    }
+    
+    .import-mode-wrapper > label:first-child {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--text-secondary);
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .import-mode-options {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .import-mode-options label {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        cursor: pointer;
+        padding: 12px;
+        background: var(--bg-tertiary);
+        border: 2px solid var(--border-color);
+        border-radius: var(--radius-md);
+        transition: all 0.3s ease;
+    }
+    
+    .import-mode-options label:hover {
+        border-color: var(--primary-color);
+        background: var(--bg-hover);
+    }
+    
+    .import-mode-options input[type="radio"]:checked ~ .mode-content {
+        color: var(--primary-color);
+    }
+    
+    .import-mode-options input[type="radio"]:checked ~ .mode-content .mode-title {
+        font-weight: 600;
+    }
+    
+    .import-mode-options input[type="radio"] {
+        margin-top: 2px;
+        cursor: pointer;
+        accent-color: var(--primary-color);
+    }
+    
+    .mode-content {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex: 1;
+    }
+    
+    .mode-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+    
+    .mode-description {
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+    
+    .file-input {
+        display: none;
+    }
+    
+    .preview-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+    }
+    
+    .preview-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .preview-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .preview-actions {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .preview-content {
+        background: var(--bg-tertiary);
+        border-radius: var(--radius-md);
+        padding: 16px;
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+        color: var(--text-primary);
+        white-space: pre-wrap;
+        word-break: break-all;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    
+    .stat-item {
+        padding: 16px;
+        background: var(--bg-tertiary);
+        border-radius: var(--radius-md);
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+    
+    .stat-label {
+        font-size: 12px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+    }
+    
+    .alert {
+        padding: 12px 16px;
+        border-radius: var(--radius-md);
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .alert-success {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        color: var(--success-color);
+    }
+    
+    .alert-error {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: var(--danger-color);
+    }
+    
+    .alert-info {
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        color: var(--info-color);
+    }
+    
+    @media (max-width: 768px) {
+        .stats-row {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        
+        .config-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        
+        .config-card {
+            padding: 20px;
+        }
+        
+        .import-mode-options {
+            gap: 8px;
+        }
+        
+        .import-mode-options label {
+            padding: 10px;
+        }
+        
+        .preview-section {
+            padding: 16px;
+        }
+        
+        .preview-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        
+        .preview-actions {
+            width: 100%;
+            justify-content: flex-end;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .stats-row {
+            grid-template-columns: 1fr;
+        }
+        
+        .stat-value {
+            font-size: 20px;
+        }
+        
+        .config-card-icon {
+            width: 48px;
+            height: 48px;
+            font-size: 20px;
+        }
+        
+        .config-card-title {
+            font-size: 16px;
+        }
+        
+        .config-card-description {
+            font-size: 13px;
+        }
+        
+        .mode-title {
+            font-size: 13px;
+        }
+        
+        .mode-description {
+            font-size: 11px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="stats-row">
+    <div class="stat-item">
+        <div class="stat-value" id="monitor-count">-</div>
+        <div class="stat-label">监控器数量</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-value" id="account-count">-</div>
+        <div class="stat-label">账号数量</div>
+    </div>
+</div>
+
+<div class="config-grid">
+    <div class="config-card export">
+        <div class="config-card-icon">
+            <i class="bi bi-download"></i>
+        </div>
+        <h3 class="config-card-title">导出配置</h3>
+        <p class="config-card-description">
+            选择要导出的账号配置，并将其导出为JSON文件。
+        </p>
+        <div class="account-select-wrapper">
+            <label>选择账号</label>
+            <select id="export-account-select" class="form-select">
+                <option value="all">全部账号</option>
+            </select>
+        </div>
+        <button class="btn btn-success" onclick="exportConfig()">
+            <i class="bi bi-download"></i>
+            导出配置文件
+        </button>
+    </div>
+    
+    <div class="config-card import">
+        <div class="config-card-icon">
+            <i class="bi bi-upload"></i>
+        </div>
+        <h3 class="config-card-title">导入配置</h3>
+        <p class="config-card-description">
+            从JSON文件导入配置，可以快速恢复或迁移您的监控设置。
+        </p>
+        <div class="import-mode-wrapper">
+            <label>导入模式</label>
+            <div class="import-mode-options">
+                <label>
+                    <input type="radio" name="import-mode" value="overwrite" checked>
+                    <div class="mode-content">
+                        <span class="mode-title">覆盖配置</span>
+                        <span class="mode-description">删除现有配置并导入新配置</span>
+                    </div>
+                </label>
+                <label>
+                    <input type="radio" name="import-mode" value="merge">
+                    <div class="mode-content">
+                        <span class="mode-title">合并配置</span>
+                        <span class="mode-description">保留现有配置并合并新配置</span>
+                    </div>
+                </label>
+            </div>
+        </div>
+        <button class="btn btn-info" onclick="document.getElementById('importFile').click()">
+            <i class="bi bi-upload"></i>
+            选择配置文件
+        </button>
+        <input type="file" id="importFile" class="file-input" accept=".json" onchange="importConfig(this)">
+    </div>
+</div>
+
+<div class="preview-section" id="preview-section" style="display: none;">
+    <div class="preview-header">
+        <h3 class="preview-title">配置预览</h3>
+        <div class="preview-actions">
+            <button class="btn btn-icon" onclick="copyConfig()">
+                <i class="bi bi-clipboard"></i>
+            </button>
+            <button class="btn btn-icon" onclick="downloadConfig()">
+                <i class="bi bi-download"></i>
+            </button>
+            <button class="btn btn-icon" onclick="closePreview()">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+    </div>
+    <div class="preview-content" id="preview-content">
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        loadStatistics();
+        loadAccountsForExport();
+    });
+    
+    async function loadAccountsForExport() {
+        try {
+            const response = await fetch('/api/accounts');
+            const data = await response.json();
+            const select = document.getElementById('export-account-select');
+            
+            if (!select) {
+                console.error('未找到账号选择框元素');
+                return;
+            }
+            
+            select.innerHTML = '<option value="all">全部账号</option>';
+            
+            if (data.accounts && data.accounts.length > 0) {
+                data.accounts.forEach(account => {
+                    const option = document.createElement('option');
+                    option.value = account.account_id;
+                    const displayText = account.phone ? 
+                        `${account.phone} (${account.account_id})` : 
+                        account.account_id;
+                    option.textContent = displayText;
+                    select.appendChild(option);
+                });
+                console.log(`成功加载 ${data.accounts.length} 个账号到导出选项`);
+            } else {
+                console.log('未找到可用账号');
+            }
+        } catch (error) {
+            console.error('加载账号列表失败:', error);
+            showMessage('加载账号列表失败: ' + error.message, 'error');
+        }
+    }
+    
+    async function loadStatistics() {
+        try {
+            const response = await fetch('/api/config/stats');
+            const data = await response.json();
+            
+            if (data.success && data.stats) {
+                document.getElementById('monitor-count').textContent = data.stats.monitor_count || 0;
+                document.getElementById('account-count').textContent = data.stats.account_count || 0;
+            } else {
+                document.getElementById('monitor-count').textContent = '-';
+                document.getElementById('account-count').textContent = '-';
+            }
+        } catch (error) {
+            console.error('加载统计信息失败:', error);
+            document.getElementById('monitor-count').textContent = '错误';
+            document.getElementById('account-count').textContent = '错误';
+        }
+    }
+    
+    async function exportConfig() {
+        try {
+            const accountSelect = document.getElementById('export-account-select');
+            const accounts = accountSelect.value;
+            
+            if (!accounts) {
+                showMessage('请选择要导出的账号', 'error');
+                return;
+            }
+            
+            console.log('导出配置，账号参数:', accounts);
+            
+            const response = await fetch(`/api/export/config?accounts=${encodeURIComponent(accounts)}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            const data = await response.json();
+            
+            showPreview(data);
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `tg_monitor_config_${new Date().getTime()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showMessage('配置导出成功', 'success');
+        } catch (error) {
+            console.error('导出配置失败:', error);
+            showMessage('导出配置失败', 'error');
+        }
+    }
+    
+    async function importConfig(input) {
+        const file = input.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            try {
+                const config = JSON.parse(e.target.result);
+                
+                showPreview(config);
+                
+                const importMode = document.querySelector('input[name="import-mode"]:checked').value;
+                const isOverwrite = importMode === 'overwrite';
+                
+                const modeText = isOverwrite ? '覆盖现有配置' : '合并到现有配置';
+                if (!confirm(`确定要导入此配置吗？这将${modeText}。`)) {
+                    return;
+                }
+                
+                const response = await fetch('/api/import/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        config: config,
+                        mode: importMode
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    showMessage(`配置导入成功 (${modeText})`, 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || '导入失败');
+                }
+            } catch (error) {
+                console.error('导入配置失败:', error);
+                showMessage('导入配置失败: ' + error.message, 'error');
+            }
+        };
+        reader.readAsText(file);
+        
+        input.value = '';
+    }
+    
+    function showPreview(config) {
+        document.getElementById('preview-section').style.display = 'block';
+        document.getElementById('preview-content').textContent = JSON.stringify(config, null, 2);
+    }
+    
+    function closePreview() {
+        document.getElementById('preview-section').style.display = 'none';
+    }
+    
+    function copyConfig() {
+        const content = document.getElementById('preview-content').textContent;
+        navigator.clipboard.writeText(content).then(() => {
+            showMessage('配置已复制到剪贴板', 'success');
+        });
+    }
+    
+    function downloadConfig() {
+        const content = document.getElementById('preview-content').textContent;
+        const blob = new Blob([content], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `tg_monitor_config_${new Date().getTime()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+    
+    function showMessage(message, type = 'info') {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type}`;
+        alertDiv.innerHTML = `
+            <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info-circle'}"></i>
+            <span>${message}</span>
+        `;
+        
+        const container = document.querySelector('.content');
+        container.insertBefore(alertDiv, container.firstChild);
+        
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 3000);
+    }
+    
+    function formatTime(timestamp) {
+        const date = new Date(timestamp);
+        return date.toLocaleString('zh-CN');
+    }
+</script>
+{% endblock %}

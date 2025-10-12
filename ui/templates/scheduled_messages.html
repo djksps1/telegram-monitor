@@ -1,0 +1,1227 @@
+{% extends "base.html" %}
+
+{% block title %}定时消息 - TG监控系统{% endblock %}
+
+{% block page_title %}定时消息{% endblock %}
+{% block page_subtitle %}管理和配置定时发送的消息{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 20px;
+        margin-bottom: 32px;
+    }
+    
+    .stat-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+        transition: all var(--transition-base);
+    }
+    
+    .stat-card:hover {
+        border-color: var(--primary-color);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+    
+    .stat-card.success { border-left: 4px solid var(--success-color); }
+    .stat-card.warning { border-left: 4px solid var(--warning-color); }
+    .stat-card.danger { border-left: 4px solid var(--danger-color); }
+    .stat-card.info { border-left: 4px solid var(--info-color); }
+    
+    .stat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+    
+    .stat-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-secondary);
+    }
+    
+    .stat-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        opacity: 0.7;
+    }
+    
+    .stat-card .stat-icon { background: rgba(91, 95, 222, 0.1); color: var(--primary-color); }
+    .stat-card.success .stat-icon { background: rgba(34, 197, 94, 0.1); color: var(--success-color); }
+    .stat-card.warning .stat-icon { background: rgba(251, 191, 36, 0.1); color: var(--warning-color); }
+    .stat-card.danger .stat-icon { background: rgba(239, 68, 68, 0.1); color: var(--danger-color); }
+    .stat-card.info .stat-icon { background: rgba(59, 130, 246, 0.1); color: var(--info-color); }
+    
+    .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+        line-height: 1;
+    }
+    
+    .stat-footer {
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+
+    .action-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+    
+    .btn-group {
+        display: flex;
+        gap: 12px;
+    }
+    
+    .messages-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 20px;
+    }
+    
+    .message-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 20px;
+        transition: all var(--transition-base);
+        position: relative;
+    }
+    
+    .message-card:hover {
+        border-color: var(--primary-color);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .message-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
+    }
+    
+    .message-card-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+    
+    .message-card-time {
+        font-size: 13px;
+        color: var(--text-secondary);
+    }
+    
+    .message-card-actions {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .message-card-body {
+        padding: 12px;
+        background: var(--bg-tertiary);
+        border-radius: var(--radius-md);
+        margin-bottom: 16px;
+        min-height: 60px;
+    }
+    
+    .message-content {
+        font-size: 14px;
+        color: var(--text-primary);
+        line-height: 1.5;
+        word-break: break-word;
+    }
+    
+    .message-card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .message-target {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--text-secondary);
+    }
+    
+    .message-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: var(--radius-full);
+        font-size: 12px;
+        font-weight: 500;
+    }
+    
+    .message-status.active {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success-color);
+    }
+    
+    .message-status.scheduled {
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--info-color);
+    }
+    
+    .message-status.paused {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning-color);
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+    }
+    
+    .empty-icon {
+        font-size: 48px;
+        color: var(--text-muted);
+        margin-bottom: 16px;
+    }
+    
+    .empty-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+    
+    .empty-description {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-bottom: 24px;
+    }
+    
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal.show {
+        display: flex;
+    }
+    
+    .modal-content {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-xl);
+        width: 90%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+        animation: modalSlideIn 0.3s ease;
+    }
+    
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .modal-header {
+        padding: 24px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .modal-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .modal-close {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 24px;
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-md);
+        transition: all var(--transition-base);
+    }
+    
+    .modal-close:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+    }
+    
+    .modal-body {
+        padding: 24px;
+    }
+    
+    .modal-footer {
+        padding: 24px;
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+    }
+    
+    .form-input,
+    .form-select,
+    .form-textarea {
+        width: 100%;
+        padding: 12px 16px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        color: var(--text-primary);
+        font-size: 14px;
+        transition: all var(--transition-base);
+    }
+    
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(91, 95, 222, 0.1);
+    }
+    
+    .form-textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+    
+    .form-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .form-checkbox input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--primary-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-header">
+            <div class="stat-title">总消息数</div>
+            <div class="stat-icon">
+                <i class="bi bi-envelope"></i>
+            </div>
+        </div>
+        <div class="stat-value" id="total-messages-count">-</div>
+        <div class="stat-footer">
+            所有定时消息
+        </div>
+    </div>
+    
+    
+    <div class="stat-card warning">
+        <div class="stat-header">
+            <div class="stat-title">已暂停</div>
+            <div class="stat-icon">
+                <i class="bi bi-pause-circle"></i>
+            </div>
+        </div>
+        <div class="stat-value" id="paused-messages-count">-</div>
+        <div class="stat-footer">
+            暂停或达到限制
+        </div>
+    </div>
+    
+    <div class="stat-card info">
+        <div class="stat-header">
+            <div class="stat-title">总执行次数</div>
+            <div class="stat-icon">
+                <i class="bi bi-arrow-repeat"></i>
+            </div>
+        </div>
+        <div class="stat-value" id="total-executions-count">-</div>
+        <div class="stat-footer">
+            累计执行统计
+        </div>
+    </div>
+</div>
+
+<div class="action-bar">
+    <button class="btn btn-primary" onclick="showAddModal()">
+        <i class="bi bi-plus-lg"></i>
+        添加定时消息
+    </button>
+    
+    <div>
+        <span class="text-muted">共 <span id="message-count">0</span> 条定时消息</span>
+    </div>
+</div>
+
+<div id="messages-container">
+    <div class="messages-grid" id="messages-grid">
+    </div>
+    
+    <div class="empty-state" id="empty-state" style="display: none;">
+        <div class="empty-icon">
+            <i class="bi bi-calendar-x"></i>
+        </div>
+        <div class="empty-title">暂无定时消息</div>
+        <div class="empty-description">点击上方按钮添加您的第一条定时消息</div>
+        <button class="btn btn-primary" onclick="showAddModal()">
+            <i class="bi bi-plus-lg"></i>
+            添加定时消息
+        </button>
+    </div>
+</div>
+
+<div class="modal" id="messageModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modalTitle">添加定时消息</h3>
+            <button class="modal-close" onclick="closeModal()">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+        
+        <div class="modal-body">
+            <form id="messageForm">
+                <div class="form-group">
+                    <label class="form-label">选择账号</label>
+                    <select class="form-select" id="account-selector" required>
+                        <option value="">加载账号中...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">消息类型</label>
+                    <div style="display: flex; gap: 16px; margin-bottom: 12px;">
+                        <label class="radio-label">
+                            <input type="radio" name="message_type" value="text" checked onchange="toggleMessageType()">
+                            <span>文本消息</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="message_type" value="ai" onchange="toggleMessageType()">
+                            <span>AI生成消息</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group" id="text-message-group">
+                    <label class="form-label">消息内容</label>
+                    <textarea class="form-textarea" id="message-content" placeholder="输入要发送的消息内容"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">目标群组/频道 ID</label>
+                    <input type="text" class="form-input" id="target-channel" placeholder="输入群组或频道ID（如：-1001234567890）" required>
+                    <small class="text-muted">请输入完整的群组或频道ID，可通过@userinfobot获取</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">定时模式</label>
+                    <select class="form-select" id="schedule-mode" onchange="toggleScheduleMode()">
+                        <option value="cron">Cron表达式（精确时间）</option>
+                        <option value="interval">间隔发送（固定间隔）</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="cron-group">
+                    <label class="form-label">
+                        定时规则 (Cron表达式)
+                        <button type="button" class="btn btn-sm btn-outline-info" onclick="showCronHelp()" style="margin-left: 8px;">
+                            <i class="bi bi-question-circle"></i> 帮助
+                        </button>
+                    </label>
+                    <input type="text" class="form-input" id="cron-expression" placeholder="例如: 0 9 * * * = 每天9:00">
+                    <small class="text-muted">
+                        格式: 分(0-59) 时(0-23) 日(1-31) 月(1-12) 周(0-6)<br>
+                        <span id="cron-validation-error" style="color: var(--danger-color); display: none;"></span>
+                    </small>
+                </div>
+                
+                <div class="form-group" id="interval-group" style="display: none;">
+                    <label class="form-label">发送间隔</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="number" class="form-input" id="interval-hours" placeholder="小时" min="0" style="flex: 1;">
+                        <span>小时</span>
+                        <input type="number" class="form-input" id="interval-minutes" placeholder="分钟" min="0" max="59" style="flex: 1;">
+                        <span>分钟</span>
+                    </div>
+                    <small class="text-muted">
+                        设置每隔多长时间发送一次消息，例如：20小时30分钟<br>
+                        <span id="interval-validation-error" style="color: var(--danger-color); display: none;"></span>
+                    </small>
+                </div>
+                
+                <div class="form-group" id="ai-prompt-group" style="display: none;">
+                    <label class="form-label">AI提示词</label>
+                    <textarea class="form-textarea" id="ai-prompt" placeholder="输入AI生成内容的提示词"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">随机延迟 (秒)</label>
+                    <input type="number" class="form-input" id="random-delay" placeholder="0-3600秒内随机延迟" min="0" max="3600">
+                    <div class="form-help">设置后，每次发送会在指定秒数内随机延迟</div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="form-checkbox">
+                        <input type="checkbox" id="delete-after-send">
+                        <label for="delete-after-send">发送后删除消息</label>
+                    </div>
+                    <small class="text-muted">勾选后，消息发送成功后将自动删除</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">最大执行次数</label>
+                    <input type="number" class="form-input" id="max-executions" placeholder="不限制" min="1">
+                    <small class="text-muted">留空表示不限制执行次数</small>
+                </div>
+            </form>
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="saveMessage()">
+                <i class="bi bi-check-lg"></i>
+                保存
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let messages = [];
+    let editingId = null;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        loadMessages();
+        loadAccounts();
+        
+        const cronInput = document.getElementById('cron-expression');
+        if (cronInput) {
+            cronInput.addEventListener('blur', validateCronExpression);
+            cronInput.addEventListener('input', clearCronError);
+        }
+        
+        setInterval(function() {
+            loadMessages();
+        }, 10000);
+    });
+    
+    function validateCronExpression() {
+        const cronInput = document.getElementById('cron-expression');
+        const errorSpan = document.getElementById('cron-validation-error');
+        const cronValue = cronInput.value.trim();
+        
+        if (!cronValue) {
+            clearCronError();
+            return;
+        }
+        
+        const cronParts = cronValue.split(' ');
+        if (cronParts.length !== 5) {
+            showCronError('Cron表达式必须包含5个部分：分 时 日 月 周');
+            return;
+        }
+        
+        const hourPart = cronParts[1];
+        if (hourPart !== '*' && !hourPart.includes('/') && !hourPart.includes('-')) {
+            const hours = hourPart.split(',');
+            for (const hour of hours) {
+                const hourNum = parseInt(hour.trim());
+                if (!isNaN(hourNum) && (hourNum < 0 || hourNum > 23)) {
+                    showCronError(`小时值 ${hourNum} 无效，必须在0-23之间`);
+                    return;
+                }
+            }
+        }
+        
+        const minutePart = cronParts[0];
+        if (minutePart !== '*' && !minutePart.includes('/') && !minutePart.includes('-')) {
+            const minutes = minutePart.split(',');
+            for (const minute of minutes) {
+                const minuteNum = parseInt(minute.trim());
+                if (!isNaN(minuteNum) && (minuteNum < 0 || minuteNum > 59)) {
+                    showCronError(`分钟值 ${minuteNum} 无效，必须在0-59之间`);
+                    return;
+                }
+            }
+        }
+        
+        clearCronError();
+    }
+    
+    function showCronError(message) {
+        const errorSpan = document.getElementById('cron-validation-error');
+        errorSpan.textContent = message;
+        errorSpan.style.display = 'inline';
+        document.getElementById('cron-expression').style.borderColor = 'var(--danger-color)';
+    }
+    
+    function clearCronError() {
+        const errorSpan = document.getElementById('cron-validation-error');
+        if (errorSpan) {
+            errorSpan.style.display = 'none';
+        }
+        const cronInput = document.getElementById('cron-expression');
+        if (cronInput) {
+            cronInput.style.borderColor = '';
+        }
+    }
+    
+    function formatScheduleDisplay(msg) {
+        if (msg.schedule_mode === 'interval') {
+            const parts = (msg.schedule || '').split(' ');
+            if (parts.length === 2) {
+                const hours = parseInt(parts[0]) || 0;
+                const minutes = parseInt(parts[1]) || 0;
+                let display = '每隔 ';
+                if (hours > 0) {
+                    display += `${hours}小时`;
+                }
+                if (minutes > 0) {
+                    if (hours > 0) display += ' ';
+                    display += `${minutes}分钟`;
+                }
+                return display;
+            }
+        }
+        return msg.schedule || '未设置';
+    }
+    
+    function toggleScheduleMode() {
+        const mode = document.getElementById('schedule-mode').value;
+        const cronGroup = document.getElementById('cron-group');
+        const intervalGroup = document.getElementById('interval-group');
+        
+        if (mode === 'cron') {
+            cronGroup.style.display = 'block';
+            intervalGroup.style.display = 'none';
+            document.getElementById('cron-expression').required = true;
+            document.getElementById('interval-hours').required = false;
+            document.getElementById('interval-minutes').required = false;
+        } else {
+            cronGroup.style.display = 'none';
+            intervalGroup.style.display = 'block';
+            document.getElementById('cron-expression').required = false;
+            document.getElementById('interval-hours').required = true;
+            document.getElementById('interval-minutes').required = true;
+        }
+        
+        clearCronError();
+        clearIntervalError();
+    }
+    
+    function validateInterval() {
+        const hours = parseInt(document.getElementById('interval-hours').value) || 0;
+        const minutes = parseInt(document.getElementById('interval-minutes').value) || 0;
+        
+        if (hours === 0 && minutes === 0) {
+            showIntervalError('间隔时间不能为0');
+            return false;
+        }
+        
+        if (minutes > 59) {
+            showIntervalError('分钟值必须在0-59之间');
+            return false;
+        }
+        
+        clearIntervalError();
+        return true;
+    }
+    
+    function showIntervalError(message) {
+        const errorSpan = document.getElementById('interval-validation-error');
+        errorSpan.textContent = message;
+        errorSpan.style.display = 'inline';
+        document.getElementById('interval-hours').style.borderColor = 'var(--danger-color)';
+        document.getElementById('interval-minutes').style.borderColor = 'var(--danger-color)';
+    }
+    
+    function clearIntervalError() {
+        const errorSpan = document.getElementById('interval-validation-error');
+        if (errorSpan) {
+            errorSpan.style.display = 'none';
+        }
+        const hoursInput = document.getElementById('interval-hours');
+        const minutesInput = document.getElementById('interval-minutes');
+        if (hoursInput) {
+            hoursInput.style.borderColor = '';
+        }
+        if (minutesInput) {
+            minutesInput.style.borderColor = '';
+        }
+    }
+    
+    async function showCronHelp() {
+        try {
+            const response = await fetch('/api/cron-examples');
+            const data = await response.json();
+            
+            if (data.success && data.examples) {
+                let helpText = "🕐 常用Cron表达式示例：\n\n";
+                data.examples.forEach(example => {
+                    helpText += `${example.expression} → ${example.description}\n`;
+                });
+                
+                helpText += "\n📋 格式说明：\n";
+                helpText += "分钟(0-59) 小时(0-23) 日期(1-31) 月份(1-12) 星期(0-6)\n\n";
+                helpText += "🔧 特殊字符：\n";
+                helpText += "* = 任意值\n";
+                helpText += "*/5 = 每5个单位\n";
+                helpText += "1,3,5 = 指定多个值\n";
+                helpText += "1-5 = 指定范围\n\n";
+                helpText += "⚠️ 注意：星期0=周日，1=周一...6=周六";
+                
+                alert(helpText);
+            }
+        } catch (error) {
+            console.error('获取Cron示例失败:', error);
+            const helpText = `🕐 Cron表达式格式：分 时 日 月 周
+
+📋 常用示例：
+0 9 * * * → 每天9:00
+30 18 * * * → 每天18:30  
+0 */2 * * * → 每2小时
+0 9 * * 1 → 每周一9:00
+0 9 1 * * → 每月1日9:00
+
+⚠️ 注意：小时为0-23，分钟为0-59
+星期：0=周日，1=周一...6=周六`;
+            alert(helpText);
+        }
+    }
+    
+    async function loadAccounts() {
+        try {
+            const response = await fetch('/api/accounts');
+            const data = await response.json();
+            const select = document.getElementById('account-selector');
+            
+            select.innerHTML = '<option value="">请选择账号</option>';
+            
+            if (data.accounts && data.accounts.length > 0) {
+                data.accounts.forEach(account => {
+                    const option = document.createElement('option');
+                    option.value = account.account_id;
+                    option.textContent = `${account.phone} (${account.account_id})`;
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('加载账号失败:', error);
+        }
+    }
+    
+    async function loadMessages() {
+        try {
+            const response = await fetch('/api/scheduled-messages');
+            const data = await response.json();
+            messages = data.messages || [];
+            
+            if (data.statistics) {
+                updateStatisticsFromAPI(data.statistics);
+            }
+            
+            renderMessages();
+        } catch (error) {
+            console.error('加载定时消息失败:', error);
+        }
+    }
+    
+    function updateStatisticsFromAPI(stats) {
+        document.getElementById('total-messages-count').textContent = stats.total_count || 0;
+        document.getElementById('paused-messages-count').textContent = stats.paused_count || 0;
+        document.getElementById('total-executions-count').textContent = stats.total_executions || 0;
+        
+        const pausedCard = document.querySelector('#paused-messages-count').closest('.stat-card');
+        if (stats.paused_count > 0) {
+            pausedCard.style.borderLeftColor = 'var(--warning-color)';
+        } else {
+            pausedCard.style.borderLeftColor = 'var(--border-color)';
+        }
+    }
+    
+    function updateStatistics() {
+        if (!messages) return;
+        
+        const totalCount = messages.length;
+        const pausedCount = messages.filter(msg => msg.active === false).length;
+        const totalExecutions = messages.reduce((sum, msg) => sum + (msg.execution_count || 0), 0);
+        
+        document.getElementById('total-messages-count').textContent = totalCount;
+        document.getElementById('paused-messages-count').textContent = pausedCount;
+        document.getElementById('total-executions-count').textContent = totalExecutions;
+        
+        const pausedCard = document.querySelector('#paused-messages-count').closest('.stat-card');
+        if (pausedCard) {
+            if (pausedCount > 0) {
+                pausedCard.style.borderLeftColor = 'var(--warning-color)';
+            } else {
+                pausedCard.style.borderLeftColor = 'var(--border-color)';
+            }
+        }
+    }
+    
+    function renderMessages() {
+        const grid = document.getElementById('messages-grid');
+        const emptyState = document.getElementById('empty-state');
+        const count = document.getElementById('message-count');
+        
+        count.textContent = messages.length;
+        
+        if (messages.length === 0) {
+            grid.style.display = 'none';
+            emptyState.style.display = 'block';
+            return;
+        }
+        
+        grid.style.display = 'grid';
+        emptyState.style.display = 'none';
+        
+        grid.innerHTML = messages.map(msg => `
+            <div class="message-card">
+                <div class="message-card-header">
+                    <div>
+                        <div class="message-card-title">定时消息 #${msg.job_id || msg.id}</div>
+                        <div class="message-card-time">
+                            <i class="bi bi-clock"></i> ${formatScheduleDisplay(msg)}
+                        </div>
+                    </div>
+                    <div class="message-card-actions">
+                        <button class="btn btn-icon" onclick="editMessage('${msg.job_id || msg.id}')" title="编辑">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-icon text-danger" onclick="deleteMessage('${msg.job_id || msg.id}')" title="删除">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="message-card-body">
+                    <div class="message-content">
+                        ${msg.use_ai ? '<i class="bi bi-robot"></i> AI生成内容' : msg.message}
+                        ${msg.delete_after_send ? '<span style="margin-left: 10px; color: var(--warning-color);"><i class="bi bi-trash"></i> 发送后删除</span>' : ''}
+                    </div>
+                </div>
+                
+                <div class="message-card-footer">
+                    <div class="message-target" style="flex: 1;">
+                        <i class="bi bi-send"></i>
+                        <span>目标: ${msg.channel_id || '未设置'}</span>
+                        ${msg.max_executions ? `
+                            <span style="margin-left: 15px;">
+                                <i class="bi bi-arrow-repeat"></i>
+                                执行: ${msg.execution_count || 0}/${msg.max_executions}
+                            </span>
+                        ` : ''}
+                    </div>
+                    <div class="message-actions" style="display: flex; gap: 8px;">
+                        <button class="btn btn-sm ${msg.active !== false ? 'btn-warning' : 'btn-success'}" onclick="toggleMessageStatus('${msg.job_id || msg.id}'); event.stopPropagation();" title="${msg.active !== false ? '暂停' : '启动'}">
+                            <i class="bi bi-${msg.active !== false ? 'pause' : 'play'}"></i>
+                        </button>
+                        <button class="btn btn-sm btn-info" onclick="viewMessageDetails('${msg.job_id || msg.id}'); event.stopPropagation();" title="查看详情">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    
+    function showAddModal() {
+        editingId = null;
+        document.getElementById('modalTitle').textContent = '添加定时消息';
+        document.getElementById('messageForm').reset();
+        document.getElementById('messageModal').classList.add('show');
+    }
+    
+    function editMessage(id) {
+        const msg = messages.find(m => (m.job_id || m.id) === id);
+        if (!msg) {
+            console.error('未找到指定的定时消息:', id);
+            return;
+        }
+        
+        editingId = id;
+        document.getElementById('modalTitle').textContent = '编辑定时消息';
+        document.getElementById('account-selector').value = msg.account_id || '';
+        
+        if (msg.use_ai) {
+            document.querySelector('input[name="message_type"][value="ai"]').checked = true;
+            document.getElementById('ai-prompt').value = msg.ai_prompt || '';
+        } else {
+            document.querySelector('input[name="message_type"][value="text"]').checked = true;
+            document.getElementById('message-content').value = msg.message;
+        }
+        toggleMessageType();
+        
+        document.getElementById('target-channel').value = msg.channel_id || '';
+        
+        const scheduleMode = msg.schedule_mode || 'cron';
+        document.getElementById('schedule-mode').value = scheduleMode;
+        toggleScheduleMode();
+        
+        if (scheduleMode === 'interval') {
+            const parts = (msg.schedule || '').split(' ');
+            if (parts.length === 2) {
+                document.getElementById('interval-hours').value = parts[0] || '0';
+                document.getElementById('interval-minutes').value = parts[1] || '0';
+            }
+        } else {
+            document.getElementById('cron-expression').value = msg.schedule || '';
+        }
+        
+        document.getElementById('random-delay').value = msg.random_delay || 0;
+        document.getElementById('delete-after-send').checked = msg.delete_after_send || false;
+        document.getElementById('max-executions').value = msg.max_executions || '';
+        
+        document.getElementById('messageModal').classList.add('show');
+    }
+    
+    function closeModal() {
+        document.getElementById('messageModal').classList.remove('show');
+        editingId = null;
+    }
+    
+    function toggleMessageType() {
+        const messageType = document.querySelector('input[name="message_type"]:checked').value;
+        if (messageType === 'text') {
+            document.getElementById('text-message-group').style.display = 'block';
+            document.getElementById('ai-prompt-group').style.display = 'none';
+            document.getElementById('message-content').required = true;
+            document.getElementById('ai-prompt').required = false;
+        } else {
+            document.getElementById('text-message-group').style.display = 'none';
+            document.getElementById('ai-prompt-group').style.display = 'block';
+            document.getElementById('message-content').required = false;
+            document.getElementById('ai-prompt').required = true;
+        }
+    }
+    
+    async function saveMessage() {
+        const messageType = document.querySelector('input[name="message_type"]:checked').value;
+        const maxExecutionsInput = document.getElementById('max-executions');
+        const maxExecutions = maxExecutionsInput.value ? parseInt(maxExecutionsInput.value) : null;
+        const scheduleMode = document.getElementById('schedule-mode').value;
+        
+        let cronExpression = '';
+        let intervalString = '';
+        
+        if (scheduleMode === 'cron') {
+            cronExpression = document.getElementById('cron-expression').value.trim();
+            if (!cronExpression) {
+                showNotification('请输入Cron表达式', 'error');
+                return;
+            }
+            
+            validateCronExpression();
+            const errorSpan = document.getElementById('cron-validation-error');
+            if (errorSpan && errorSpan.style.display !== 'none') {
+                showNotification('请修正Cron表达式错误', 'error');
+                return;
+            }
+        } else {
+            const hours = parseInt(document.getElementById('interval-hours').value) || 0;
+            const minutes = parseInt(document.getElementById('interval-minutes').value) || 0;
+            
+            if (!validateInterval()) {
+                showNotification('请修正间隔时间错误', 'error');
+                return;
+            }
+            
+            intervalString = `${hours} ${minutes}`;
+        }
+        
+        const formData = {
+            account_id: document.getElementById('account-selector').value,
+            message: messageType === 'text' ? document.getElementById('message-content').value : '',
+            channel_id: document.getElementById('target-channel').value,
+            schedule_mode: scheduleMode,
+            schedule: scheduleMode === 'cron' ? cronExpression : intervalString,
+            use_ai: messageType === 'ai',
+            ai_prompt: messageType === 'ai' ? document.getElementById('ai-prompt').value : '',
+            random_delay: parseInt(document.getElementById('random-delay').value) || 0,
+            delete_after_send: document.getElementById('delete-after-send').checked,
+            max_executions: maxExecutions
+        };
+        
+        console.log('保存定时消息，数据:', formData);
+        
+        try {
+            const url = editingId ? `/api/scheduled-messages/${editingId}` : '/api/scheduled-messages';
+            const method = editingId ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            if (response.ok) {
+                closeModal();
+                showNotification('定时消息保存成功', 'success');
+                await loadMessages();
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                const errorMsg = errorData.detail || '保存失败，请重试';
+                showNotification(errorMsg, 'error');
+            }
+        } catch (error) {
+            console.error('保存消息失败:', error);
+            showNotification('保存失败：' + error.message, 'error');
+        }
+    }
+    
+    async function deleteMessage(id) {
+        if (!id || id === 'undefined' || id === 'null') {
+            console.error('删除消息: ID无效', id);
+            alert('无效的消息ID，请刷新页面后重试');
+            return;
+        }
+        
+        if (!confirm('确定要删除这条定时消息吗？')) return;
+        
+        try {
+            console.log('删除定时消息，ID:', id);
+            const response = await fetch(`/api/scheduled-messages/${encodeURIComponent(id)}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                await loadMessages();
+                showNotification('定时消息删除成功', 'success');
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || '删除失败');
+            }
+        } catch (error) {
+            console.error('删除消息失败:', error);
+            showNotification('删除失败: ' + error.message, 'error');
+        }
+    }
+    
+    
+    function refreshMessages() {
+        loadMessages();
+    }
+    
+    function showNotification(message, type = 'info') {
+        const colors = {
+            'success': '#10b981',
+            'error': '#ef4444', 
+            'warning': '#f59e0b',
+            'info': '#3b82f6'
+        };
+        
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${colors[type] || colors.info};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 10000;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 3000);
+    }
+    
+    async function toggleMessageStatus(id) {
+        if (!id || id === 'undefined' || id === 'null') {
+            console.error('切换状态: ID无效', id);
+            return;
+        }
+        
+        const msg = messages.find(m => (m.job_id || m.id) === id);
+        if (!msg) {
+            console.error('未找到指定的定时消息:', id);
+            return;
+        }
+        
+        const newStatus = msg.active !== false ? false : true;
+        
+        try {
+            const response = await fetch(`/api/scheduled-messages/${encodeURIComponent(id)}/toggle`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({active: newStatus})
+            });
+            
+            if (response.ok) {
+                msg.active = newStatus;
+                
+                if (newStatus && msg.max_executions && msg.execution_count >= msg.max_executions) {
+                    msg.execution_count = 0;
+                }
+                
+                renderMessages();
+                updateStatistics();
+                
+                await loadMessages();
+                showNotification(`定时消息已${newStatus ? '启动' : '暂停'}`, 'success');
+            } else {
+                throw new Error('状态更新失败');
+            }
+        } catch (error) {
+            console.error('切换消息状态失败:', error);
+            showNotification('状态更新失败: ' + error.message, 'error');
+        }
+    }
+    
+    function viewMessageDetails(id) {
+        const msg = messages.find(m => (m.job_id || m.id) === id);
+        if (!msg) {
+            console.error('未找到指定的定时消息:', id);
+            return;
+        }
+        
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+        
+        modal.innerHTML = `
+            <div style="
+                background: var(--bg-card);
+                border-radius: var(--radius-lg);
+                padding: 24px;
+                max-width: 600px;
+                width: 90%;
+                max-height: 80%;
+                overflow-y: auto;
+                box-shadow: var(--shadow-lg);
+            ">
+                <div style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 20px;
+                    border-bottom: 1px solid var(--border-color);
+                    padding-bottom: 12px;
+                ">
+                    <h3 style="color: var(--text-primary); margin: 0;">定时消息详情</h3>
+                    <button onclick="this.parentElement.parentElement.parentElement.remove()" 
+                            style="
+                                background: none;
+                                border: none;
+                                color: var(--text-secondary);
+                                font-size: 18px;
+                                cursor: pointer;
+                            ">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+                <div style="
+                    background: var(--bg-secondary);
+                    padding: 16px;
+                    border-radius: var(--radius-md);
+                    color: var(--text-primary);
+                    font-size: 14px;
+                    line-height: 1.6;
+                ">
+                    <p><strong>消息ID:</strong> ${msg.job_id || msg.id}</p>
+                    <p><strong>状态:</strong> ${msg.active !== false ? '运行中' : '已暂停'}</p>
+                    <p><strong>账号:</strong> ${msg.account_id || '未设置'}</p>
+                    <p><strong>目标频道/群组:</strong> ${msg.channel_id || '未设置'}</p>
+                    <p><strong>调度表达式:</strong> ${msg.schedule || '未设置'}</p>
+                    <p><strong>消息类型:</strong> ${msg.use_ai ? 'AI生成' : '固定文本'}</p>
+                    ${msg.use_ai ? `<p><strong>AI提示词:</strong> ${msg.ai_prompt || '无'}</p>` : `<p><strong>消息内容:</strong> ${msg.message || '无'}</p>`}
+                    <p><strong>随机延时:</strong> ${msg.random_delay || 0} 秒</p>
+                    <p><strong>发送后删除:</strong> ${msg.delete_after_send ? '是' : '否'}</p>
+                    <p><strong>最大执行次数:</strong> ${msg.max_executions || '无限制'}</p>
+                    <p><strong>已执行次数:</strong> ${msg.execution_count || 0}</p>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+</script>
+{% endblock %}

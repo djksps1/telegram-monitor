@@ -1,0 +1,436 @@
+{% extends "base.html" %}
+
+{% block title %}监控仪表板 - TG监控系统{% endblock %}
+
+{% block page_title %}监控仪表板{% endblock %}
+{% block page_subtitle %}实时监控您的Telegram账号状态{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-grid {
+        display: grid;
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+    
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        margin-top: 24px;
+    }
+    
+    .quick-action-btn {
+        padding: 20px 12px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        text-align: center;
+        cursor: pointer;
+        transition: all var(--transition-base);
+        text-decoration: none;
+        color: var(--text-primary);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100px;
+    }
+    
+    .quick-action-btn:hover {
+        background: var(--bg-hover);
+        border-color: var(--primary-color);
+        transform: translateY(-2px);
+    }
+    
+    .quick-action-icon {
+        font-size: 28px;
+        margin-bottom: 12px;
+        color: var(--primary-color);
+    }
+    
+    .quick-action-text {
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1.4;
+        word-break: keep-all;
+        white-space: nowrap;
+    }
+    
+    .metric-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .metric-item:last-child {
+        border-bottom: none;
+    }
+    
+    .metric-label {
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+    
+    .metric-value {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .progress-bar {
+        height: 8px;
+        background: var(--bg-tertiary);
+        border-radius: var(--radius-full);
+        overflow: hidden;
+        margin-top: 8px;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: var(--primary-gradient);
+        border-radius: var(--radius-full);
+        transition: width var(--transition-slow);
+    }
+    
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .animate-in {
+        animation: slideInUp 0.5s ease-out;
+    }
+    
+    @media (max-width: 768px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+        }
+        
+        .quick-actions {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 10px !important;
+        }
+        
+        .quick-action-btn {
+            padding: 16px 8px !important;
+            min-height: 90px !important;
+        }
+        
+        .quick-action-icon {
+            font-size: 24px !important;
+            margin-bottom: 8px !important;
+        }
+        
+        .quick-action-text {
+            font-size: 12px !important;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .quick-actions {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 8px !important;
+        }
+        
+        .quick-action-btn {
+            padding: 14px 6px !important;
+            min-height: 85px !important;
+        }
+        
+        .quick-action-icon {
+            font-size: 22px !important;
+            margin-bottom: 6px !important;
+        }
+        
+        .quick-action-text {
+            font-size: 11px !important;
+            line-height: 1.3 !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card animate-in" style="animation-delay: 0.1s;">
+        <div class="stat-header">
+            <div class="stat-title">总账号数</div>
+            <div class="stat-icon">
+                <i class="bi bi-people"></i>
+            </div>
+        </div>
+        <div class="stat-value" id="total-accounts">-</div>
+        <div class="stat-change">
+            <i class="bi bi-circle"></i>
+            <span>加载中...</span>
+        </div>
+        <div class="stat-footer">
+            <i class="bi bi-info-circle"></i> 包含所有已添加的账号
+        </div>
+    </div>
+    
+    <div class="stat-card success animate-in" style="animation-delay: 0.2s;">
+        <div class="stat-header">
+            <div class="stat-title">活跃监控</div>
+            <div class="stat-icon">
+                <i class="bi bi-eye"></i>
+            </div>
+        </div>
+        <div class="stat-value" id="active-monitors">-</div>
+        <div class="stat-change">
+            <i class="bi bi-circle"></i>
+            <span>加载中...</span>
+        </div>
+        <div class="stat-footer">
+            <i class="bi bi-check-circle"></i> 所有监控器运行正常
+        </div>
+    </div>
+    
+    <div class="stat-card info animate-in" style="animation-delay: 0.3s;">
+        <div class="stat-header">
+            <div class="stat-title">处理消息</div>
+            <div class="stat-icon">
+                <i class="bi bi-chat-dots"></i>
+            </div>
+        </div>
+        <div class="stat-value" id="processed-messages">-</div>
+        <div class="stat-change">
+            <i class="bi bi-circle"></i>
+            <span>加载中...</span>
+        </div>
+        <div class="stat-footer">
+            <i class="bi bi-clock"></i> 最近24小时
+        </div>
+    </div>
+    
+    <div class="stat-card warning animate-in" style="animation-delay: 0.4s;">
+        <div class="stat-header">
+            <div class="stat-title">运行时间</div>
+            <div class="stat-icon">
+                <i class="bi bi-clock-history"></i>
+            </div>
+        </div>
+        <div class="stat-value" id="runtime">-</div>
+        <div class="stat-change positive">
+            <i class="bi bi-circle"></i>
+            <span>加载中...</span>
+        </div>
+        <div class="stat-footer">
+            <i class="bi bi-cpu"></i> 系统状态
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid" style="grid-template-columns: 1fr 1fr;">
+    <div class="data-card animate-in" style="animation-delay: 0.5s;">
+        <div class="data-card-header">
+            <h3 class="data-card-title">
+                <i class="bi bi-cpu" style="margin-right: 8px;"></i>
+                系统状态
+            </h3>
+        </div>
+        <div style="padding: 24px;">
+            <div class="metric-item">
+                <span class="metric-label">CPU使用率</span>
+                <span class="metric-value" id="cpu-usage">加载中...</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="cpu-progress" style="width: 0%;"></div>
+            </div>
+            
+            <div class="metric-item" style="margin-top: 16px;">
+                <span class="metric-label">内存使用</span>
+                <span class="metric-value" id="memory-usage">加载中...</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="memory-progress" style="width: 0%; background: var(--success-gradient);"></div>
+            </div>
+            
+            <div class="metric-item" style="margin-top: 16px;">
+                <span class="metric-label">磁盘空间</span>
+                <span class="metric-value" id="disk-usage">加载中...</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="disk-progress" style="width: 0%; background: var(--info-gradient);"></div>
+            </div>
+            
+            <div class="metric-item" style="margin-top: 16px;">
+                <span class="metric-label">网络状态</span>
+                <span class="metric-value" id="network-status" style="color: var(--success-color);">
+                    <i class="bi bi-hourglass-split"></i> 加载中...
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="data-card animate-in" style="animation-delay: 0.6s;">
+        <div class="data-card-header">
+            <h3 class="data-card-title">
+                <i class="bi bi-lightning" style="margin-right: 8px;"></i>
+                快速操作
+            </h3>
+        </div>
+        <div style="padding: 24px;">
+            <div class="quick-actions">
+                <a href="/wizard" class="quick-action-btn">
+                    <div class="quick-action-icon">
+                        <i class="bi bi-plus-circle"></i>
+                    </div>
+                    <div class="quick-action-text">创建监控器</div>
+                </a>
+                
+                <a href="/accounts" class="quick-action-btn">
+                    <div class="quick-action-icon">
+                        <i class="bi bi-person-plus"></i>
+                    </div>
+                    <div class="quick-action-text">添加账号</div>
+                </a>
+                
+                <a href="/scheduled-messages" class="quick-action-btn">
+                    <div class="quick-action-icon">
+                        <i class="bi bi-clock"></i>
+                    </div>
+                    <div class="quick-action-text">定时消息</div>
+                </a>
+                
+                <a href="/config-export" class="quick-action-btn">
+                    <div class="quick-action-icon">
+                        <i class="bi bi-download"></i>
+                    </div>
+                    <div class="quick-action-text">导出配置</div>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function updateDashboardData() {
+        fetch('/api/stats')
+            .then(res => res.json())
+            .then(data => {
+                if (data.total_accounts !== undefined) {
+                    document.getElementById('total-accounts').textContent = data.total_accounts;
+                    document.querySelector('#total-accounts').nextElementSibling.innerHTML = 
+                        '<i class="bi bi-check-circle"></i><span>已加载</span>';
+                }
+                if (data.total_monitors !== undefined) {
+                    document.getElementById('active-monitors').textContent = data.total_monitors;
+                    document.querySelector('#active-monitors').nextElementSibling.innerHTML = 
+                        '<i class="bi bi-check-circle"></i><span>所有监控器运行正常</span>';
+                }
+                if (data.processed_messages !== undefined) {
+                    document.getElementById('processed-messages').textContent = 
+                        new Intl.NumberFormat('zh-CN').format(data.processed_messages);
+                    document.querySelector('#processed-messages').nextElementSibling.innerHTML = 
+                        '<i class="bi bi-check-circle"></i><span>最近24小时</span>';
+                }
+                if (data.uptime !== undefined) {
+                    document.getElementById('runtime').textContent = data.uptime;
+                    document.querySelector('#runtime').nextElementSibling.innerHTML = 
+                        '<i class="bi bi-check-circle"></i><span>系统状态</span>';
+                }
+                
+                updateSystemMetrics(data);
+            })
+            .catch(err => {
+                console.error('Failed to update dashboard:', err);
+                document.getElementById('total-accounts').textContent = '0';
+                document.getElementById('active-monitors').textContent = '0';
+                document.getElementById('processed-messages').textContent = '0';
+                document.getElementById('runtime').textContent = '0天';
+                
+                document.getElementById('cpu-usage').textContent = '错误';
+                document.getElementById('memory-usage').textContent = '错误';
+                document.getElementById('disk-usage').textContent = '错误';
+                document.getElementById('network-status').innerHTML = '<i class="bi bi-exclamation-triangle"></i> 连接失败';
+                document.getElementById('network-status').style.color = 'var(--danger-color)';
+                
+                document.getElementById('cpu-progress').style.width = '0%';
+                document.getElementById('memory-progress').style.width = '0%';
+                document.getElementById('disk-progress').style.width = '0%';
+            });
+    }
+    
+    function updateSystemMetrics(data) {
+        if (data.cpu_percent !== undefined) {
+            const cpuPercent = Math.round(data.cpu_percent);
+            document.getElementById('cpu-usage').textContent = cpuPercent + '%';
+            document.getElementById('cpu-progress').style.width = cpuPercent + '%';
+            
+            const cpuProgress = document.getElementById('cpu-progress');
+            if (cpuPercent > 80) {
+                cpuProgress.style.background = 'var(--danger-gradient)';
+            } else if (cpuPercent > 60) {
+                cpuProgress.style.background = 'var(--warning-gradient)';
+            } else {
+                cpuProgress.style.background = 'var(--primary-gradient)';
+            }
+        }
+        
+        if (data.memory_percent !== undefined && data.memory_used_mb !== undefined) {
+            const memoryPercent = Math.round(data.memory_percent);
+            const memoryUsedMB = Math.round(data.memory_used_mb);
+            document.getElementById('memory-usage').textContent = memoryUsedMB + ' MB (' + memoryPercent + '%)';
+            document.getElementById('memory-progress').style.width = memoryPercent + '%';
+            
+            const memoryProgress = document.getElementById('memory-progress');
+            if (memoryPercent > 90) {
+                memoryProgress.style.background = 'var(--danger-gradient)';
+            } else if (memoryPercent > 75) {
+                memoryProgress.style.background = 'var(--warning-gradient)';
+            } else {
+                memoryProgress.style.background = 'var(--success-gradient)';
+            }
+        }
+        
+        if (data.disk_usage_percent !== undefined) {
+            const diskPercent = Math.round(data.disk_usage_percent);
+            document.getElementById('disk-usage').textContent = diskPercent + '%';
+            document.getElementById('disk-progress').style.width = diskPercent + '%';
+            
+            const diskProgress = document.getElementById('disk-progress');
+            if (diskPercent > 90) {
+                diskProgress.style.background = 'var(--danger-gradient)';
+            } else if (diskPercent > 70) {
+                diskProgress.style.background = 'var(--warning-gradient)';
+            } else {
+                diskProgress.style.background = 'var(--info-gradient)';
+            }
+        }
+        
+        if (data.network_status !== undefined) {
+            const networkStatus = document.getElementById('network-status');
+            let icon = 'bi-check-circle';
+            let color = 'var(--success-color)';
+            
+            if (data.network_status === '无活动') {
+                icon = 'bi-dash-circle';
+                color = 'var(--text-muted)';
+            } else if (data.network_status === '高活动') {
+                icon = 'bi-lightning';
+                color = 'var(--warning-color)';
+            }
+            
+            networkStatus.innerHTML = `<i class="bi ${icon}"></i> ${data.network_status}`;
+            networkStatus.style.color = color;
+        }
+    }
+    
+    updateDashboardData();
+    
+    setInterval(updateDashboardData, 30000);
+</script>
+{% endblock %}

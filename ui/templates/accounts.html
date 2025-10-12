@@ -1,0 +1,1058 @@
+{% extends "base.html" %}
+
+{% block title %}账号管理 - TG监控系统{% endblock %}
+
+{% block page_title %}账号管理{% endblock %}
+{% block page_subtitle %}管理和配置您的Telegram账号{% endblock %}
+
+{% block extra_css %}
+<style>
+    .accounts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+    
+    .account-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        transition: all var(--transition-base);
+        position: relative;
+    }
+    
+    .account-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-xl);
+        border-color: var(--primary-color);
+    }
+    
+    .account-card.connecting {
+        border-color: var(--warning-color);
+    }
+    
+    .account-card.connected {
+        border-color: var(--success-color);
+    }
+    
+    .account-card.error {
+        border-color: var(--danger-color);
+    }
+    
+    .account-header {
+        padding: 20px;
+        background: linear-gradient(135deg, rgba(91, 95, 222, 0.1) 0%, rgba(123, 127, 238, 0.05) 100%);
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    
+    .account-avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: var(--radius-full);
+        background: var(--primary-gradient);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+        font-weight: 600;
+        position: relative;
+    }
+    
+    .account-avatar img {
+        width: 100%;
+        height: 100%;
+        border-radius: var(--radius-full);
+        object-fit: cover;
+    }
+    
+    .account-status-dot {
+        position: absolute;
+        bottom: 2px;
+        right: 2px;
+        width: 16px;
+        height: 16px;
+        border-radius: var(--radius-full);
+        border: 3px solid var(--bg-card);
+        background: var(--success-color);
+    }
+    
+    .account-status-dot.offline {
+        background: var(--text-muted);
+    }
+    
+    .account-status-dot.connecting {
+        background: var(--warning-color);
+        animation: pulse 1.5s infinite;
+    }
+    
+    .account-status-dot.error {
+        background: var(--danger-color);
+    }
+    
+    .account-status-dot.banned {
+        background: #dc3545;
+    }
+    
+    .account-status-dot.unauthorized {
+        background: #fd7e14;
+    }
+    
+    .account-status-dot.session_revoked {
+        background: #6f42c1;
+    }
+    
+    .account-status-dot.invalid {
+        background: #e83e8c;
+    }
+    
+    .account-info {
+        flex: 1;
+    }
+    
+    .account-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+    
+    .account-phone {
+        font-size: 13px;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .account-body {
+        padding: 20px;
+    }
+    
+    .account-stats {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .account-stat {
+        text-align: center;
+        padding: 12px;
+        background: var(--bg-tertiary);
+        border-radius: var(--radius-md);
+    }
+    
+    .account-stat-value {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+    
+    .account-stat-label {
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+    
+    .account-actions {
+        display: flex;
+        gap: 8px;
+        padding: 16px 20px;
+        background: var(--bg-tertiary);
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .account-action-btn {
+        flex: 1;
+        padding: 8px;
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: all var(--transition-base);
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+    
+    .account-action-btn:hover {
+        background: var(--bg-hover);
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+    }
+    
+    .account-action-btn.danger:hover {
+        background: rgba(239, 68, 68, 0.1);
+        border-color: var(--danger-color);
+        color: var(--danger-color);
+    }
+    
+    .add-account-card {
+        background: var(--bg-card);
+        border: 2px dashed var(--border-color);
+        border-radius: var(--radius-lg);
+        min-height: 320px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all var(--transition-base);
+    }
+    
+    .add-account-card:hover {
+        border-color: var(--primary-color);
+        background: var(--bg-hover);
+        transform: translateY(-4px);
+    }
+    
+    .add-account-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: var(--radius-full);
+        background: rgba(91, 95, 222, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        color: var(--primary-color);
+        margin-bottom: 16px;
+    }
+    
+    .add-account-text {
+        font-size: 16px;
+        font-weight: 500;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+    
+    .add-account-subtext {
+        font-size: 13px;
+        color: var(--text-secondary);
+    }
+    
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(4px);
+    }
+    
+    .modal.show {
+        display: flex;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    .modal-content {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-xl);
+        width: 90%;
+        max-width: 500px;
+        max-height: 90vh;
+        overflow-y: auto;
+        animation: slideUp 0.3s ease;
+    }
+    
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .modal-header {
+        padding: 24px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .modal-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .modal-close {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 24px;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: var(--radius-sm);
+        transition: all var(--transition-base);
+    }
+    
+    .modal-close:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+    }
+    
+    .modal-body {
+        padding: 24px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 12px 16px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        color: var(--text-primary);
+        font-size: 14px;
+        transition: all var(--transition-base);
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(91, 95, 222, 0.1);
+    }
+    
+    .form-input::placeholder {
+        color: var(--text-muted);
+    }
+    
+    .form-help {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 6px;
+    }
+    
+    .modal-footer {
+        padding: 20px 24px;
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+    
+    .empty-state-icon {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 24px;
+        background: rgba(91, 95, 222, 0.1);
+        border-radius: var(--radius-full);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 48px;
+        color: var(--primary-color);
+    }
+    
+    .empty-state-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+    
+    .empty-state-text {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-bottom: 24px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 24px;">
+    <button class="btn btn-primary" onclick="showAddAccountModal()">
+        <i class="bi bi-plus-lg"></i>
+        添加账号
+    </button>
+</div>
+
+<div class="stats-grid" style="margin-bottom: 32px;">
+    <div class="stat-card">
+        <div class="stat-header">
+            <div class="stat-title">总账号数</div>
+            <div class="stat-icon">
+                <i class="bi bi-people"></i>
+            </div>
+        </div>
+        <div class="stat-value">-</div>
+        <div class="stat-footer">
+            已添加的所有账号
+        </div>
+    </div>
+    
+    <div class="stat-card success">
+        <div class="stat-header">
+            <div class="stat-title">在线账号</div>
+            <div class="stat-icon">
+                <i class="bi bi-check-circle"></i>
+            </div>
+        </div>
+        <div class="stat-value">-</div>
+        <div class="stat-footer">
+            正常连接中
+        </div>
+    </div>
+    
+    <div class="stat-card danger">
+        <div class="stat-header">
+            <div class="stat-title">离线账号</div>
+            <div class="stat-icon">
+                <i class="bi bi-x-circle"></i>
+            </div>
+        </div>
+        <div class="stat-value">-</div>
+        <div class="stat-footer">
+            需要重新连接
+        </div>
+    </div>
+    
+    <div class="stat-card" style="border-left: 4px solid #e83e8c;">
+        <div class="stat-header">
+            <div class="stat-title">失效账号</div>
+            <div class="stat-icon">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+        </div>
+        <div class="stat-value">-</div>
+        <div class="stat-footer">
+            需要重新登录
+        </div>
+    </div>
+</div>
+
+<div class="accounts-grid" id="accountsGrid">
+    
+    <div class="add-account-card" onclick="showAddAccountModal()">
+        <div class="add-account-icon">
+            <i class="bi bi-plus-lg"></i>
+        </div>
+        <div class="add-account-text">添加新账号</div>
+        <div class="add-account-subtext">点击添加Telegram账号</div>
+    </div>
+</div>
+
+<div class="modal" id="addAccountModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">添加Telegram账号</h3>
+            <button class="modal-close" onclick="hideAddAccountModal()">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="addAccountForm">
+                <div class="form-group">
+                    <label class="form-label">手机号码</label>
+                    <input type="tel" class="form-input" id="phone" name="phone" placeholder="+86 13800138000" required>
+                    <div class="form-help">请输入完整的手机号码，包含国家代码</div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">API ID</label>
+                    <input type="text" class="form-input" name="api_id" id="apiId" placeholder="请输入API ID" required>
+                    <div class="form-help">从 my.telegram.org 获取</div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">API Hash</label>
+                    <input type="text" class="form-input" name="api_hash" id="apiHash" placeholder="请输入API Hash" required>
+                    <div class="form-help">从 my.telegram.org 获取</div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">代理设置（可选）</label>
+                    <select class="form-input" id="proxyType" onchange="toggleProxyAddress()">
+                        <option value="">不使用代理</option>
+                        <option value="socks5">SOCKS5</option>
+                        <option value="http">HTTP</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="proxyAddressGroup" style="display: none;">
+                    <label class="form-label">代理地址</label>
+                    <input type="text" class="form-input" id="proxyAddress" placeholder="例如：127.0.0.1:1080">
+                    <div class="form-help">格式：IP地址:端口号</div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">账号备注（可选）</label>
+                    <input type="text" class="form-input" placeholder="例如：主账号、测试账号等">
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="hideAddAccountModal()">取消</button>
+            <button class="btn btn-primary" onclick="submitAddAccount()">
+                <i class="bi bi-plus-lg"></i>
+                添加账号
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="verifyCodeModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">输入验证码</h3>
+            <button class="modal-close" onclick="hideVerifyCodeModal()">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid var(--info-color); color: var(--info-color); padding: 16px; border-radius: var(--radius-md); margin-bottom: 24px;">
+                <i class="bi bi-phone"></i>
+                验证码已发送到您的Telegram账号,请检查消息。
+            </div>
+            
+            <form id="verifyCodeForm">
+                <input type="hidden" id="verify_account_id" name="account_id">
+                
+                <div class="form-group">
+                    <label class="form-label">验证码</label>
+                    <input type="text" class="form-input" id="verification_code" name="code" 
+                           placeholder="请输入验证码" maxlength="6" required 
+                           style="text-align: center; font-size: 24px; letter-spacing: 8px;">
+                    <div class="form-help">请输入Telegram发送给您的验证码（通常为5-6位数字）</div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="hideVerifyCodeModal()">取消</button>
+            <button class="btn btn-primary" onclick="submitVerifyCode()">
+                <i class="bi bi-check"></i>
+                验证
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="passwordModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">两步验证</h3>
+            <button class="modal-close" onclick="hidePasswordModal()">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid var(--warning-color); color: var(--warning-color); padding: 16px; border-radius: var(--radius-md); margin-bottom: 24px;">
+                <i class="bi bi-shield-lock"></i>
+                检测到您启用了两步验证，请输入您的两步验证密码。
+            </div>
+            
+            <form id="passwordForm">
+                <input type="hidden" id="password_account_id" name="account_id">
+                
+                <div class="form-group">
+                    <label class="form-label">两步验证密码</label>
+                    <div style="position: relative;">
+                        <input type="password" class="form-input" id="two_factor_password" name="password" required style="padding-right: 45px;">
+                        <button type="button" id="togglePassword" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 16px;" onclick="togglePasswordVisibility()">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
+                    <div class="form-help">请输入您在Telegram中设置的两步验证密码</div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="hidePasswordModal()">取消</button>
+            <button class="btn btn-primary" onclick="submitPassword()">
+                <i class="bi bi-unlock"></i>
+                确认
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function showAddAccountModal() {
+        document.getElementById('addAccountModal').classList.add('show');
+        
+        try {
+            const response = await fetch('/api/config/defaults');
+            if (response.ok) {
+                const config = await response.json();
+                if (config.success && config.api_id) {
+                    document.getElementById('apiId').value = config.api_id;
+                }
+                if (config.success && config.api_hash) {
+                    document.getElementById('apiHash').value = config.api_hash;
+                }
+            } else if (response.status === 401) {
+                console.error('未登录，无法获取默认配置');
+                window.location.href = '/login';
+            }
+        } catch (error) {
+            console.error('Failed to load defaults:', error);
+        }
+    }
+    
+    function toggleProxyAddress() {
+        const proxyType = document.getElementById('proxyType').value;
+        const proxyAddressGroup = document.getElementById('proxyAddressGroup');
+        
+        if (proxyType) {
+            proxyAddressGroup.style.display = 'block';
+        } else {
+            proxyAddressGroup.style.display = 'none';
+            document.getElementById('proxyAddress').value = '';
+        }
+    }
+    
+    function hideAddAccountModal() {
+        document.getElementById('addAccountModal').classList.remove('show');
+        document.getElementById('addAccountForm').reset();
+    }
+    
+    async function submitAddAccount() {
+        const form = document.getElementById('addAccountForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        const formData = new FormData(form);
+        const data = {
+            phone: formData.get('phone'),
+            api_id: parseInt(formData.get('api_id')),
+            api_hash: formData.get('api_hash')
+        };
+        
+        const proxyType = document.getElementById('proxyType').value;
+        if (proxyType) {
+            const proxyAddress = document.getElementById('proxyAddress').value;
+            if (proxyAddress && proxyAddress.includes(':')) {
+                const [host, port] = proxyAddress.split(':');
+                data.proxy_type = proxyType;
+                data.proxy_host = host;
+                data.proxy_port = parseInt(port);
+            }
+        }
+        
+        try {
+            const response = await fetch('/api/accounts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                if (result.step === 'verify_code') {
+                    document.getElementById('verify_account_id').value = data.phone;
+                    hideAddAccountModal();
+                    showVerifyCodeModal();
+                    showNotification(result.message || '验证码已发送', 'info');
+                } else {
+                    hideAddAccountModal();
+                    showNotification(result.message || '账号添加成功', 'success');
+                    loadAccounts();
+                }
+            } else {
+                showNotification(result.message || '添加失败', 'error');
+            }
+        } catch (error) {
+            console.error('添加账号失败:', error);
+            showNotification('添加账号失败，请重试', 'error');
+        }
+    }
+    
+    function showVerifyCodeModal() {
+        document.getElementById('verifyCodeModal').classList.add('show');
+    }
+    
+    function hideVerifyCodeModal() {
+        document.getElementById('verifyCodeModal').classList.remove('show');
+        document.getElementById('verifyCodeForm').reset();
+    }
+    
+    async function submitVerifyCode() {
+        const form = document.getElementById('verifyCodeForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        const formData = new FormData(form);
+        const data = {
+            account_id: formData.get('account_id'),
+            code: formData.get('code')
+        };
+        
+        try {
+            const response = await fetch('/api/accounts/verify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                if (result.step === 'password') {
+                    document.getElementById('password_account_id').value = data.account_id;
+                    hideVerifyCodeModal();
+                    showPasswordModal();
+                    showNotification(result.message || '请输入两步验证密码', 'info');
+                } else {
+                    hideVerifyCodeModal();
+                    showNotification(result.message || '账号添加成功', 'success');
+                    loadAccounts();
+                }
+            } else {
+                showNotification(result.message || '验证失败', 'error');
+            }
+        } catch (error) {
+            console.error('验证码验证失败:', error);
+            showNotification('验证失败，请重试', 'error');
+        }
+    }
+    
+    function showPasswordModal() {
+        document.getElementById('passwordModal').classList.add('show');
+    }
+    
+    function hidePasswordModal() {
+        document.getElementById('passwordModal').classList.remove('show');
+        document.getElementById('passwordForm').reset();
+    }
+    
+    async function submitPassword() {
+        const form = document.getElementById('passwordForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        const formData = new FormData(form);
+        const data = {
+            account_id: formData.get('account_id'),
+            password: formData.get('password')
+        };
+        
+        try {
+            const response = await fetch('/api/accounts/password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                hidePasswordModal();
+                showNotification(result.message || '账号添加成功', 'success');
+                loadAccounts();
+            } else {
+                showNotification(result.message || '密码验证失败', 'error');
+            }
+        } catch (error) {
+            console.error('密码验证失败:', error);
+            showNotification('验证失败，请重试', 'error');
+        }
+    }
+    
+    function showNotification(message, type = 'info') {
+        const alertClass = {
+            'success': 'alert-success',
+            'error': 'alert-danger',
+            'warning': 'alert-warning',
+            'info': 'alert-info'
+        }[type] || 'alert-info';
+        
+        const notification = document.createElement('div');
+        notification.className = `alert ${alertClass} alert-dismissible fade show`;
+        notification.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 500px;';
+        notification.innerHTML = `
+            <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info-circle'}"></i>
+            ${message}
+            <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
+    }
+    
+    document.getElementById('addAccountModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideAddAccountModal();
+        }
+    });
+    
+    document.getElementById('verifyCodeModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideVerifyCodeModal();
+        }
+    });
+    
+    document.getElementById('passwordModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hidePasswordModal();
+        }
+    });
+    
+    async function loadAccounts() {
+        try {
+            const response = await fetch('/api/accounts');
+            const data = await response.json();
+            const accounts = data.accounts || [];
+            
+            const grid = document.getElementById('accountsGrid');
+            
+            const addAccountCard = grid.querySelector('.add-account-card');
+            grid.innerHTML = '';
+            
+            if (accounts.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
+                        <div class="empty-state-icon">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <div class="empty-state-title">暂无账号</div>
+                        <div class="empty-state-text">点击添加您的第一个Telegram账号</div>
+                    </div>
+                `;
+            } else {
+                accounts.forEach(account => {
+                    let statusClass = 'offline';
+                    let statusDotClass = 'offline';
+                    
+                    if (account.is_valid && account.monitor_active) {
+                        statusClass = 'connected';
+                        statusDotClass = '';
+                    } else if (account.is_valid && !account.monitor_active) {
+                        statusClass = 'offline';
+                        statusDotClass = 'offline';
+                    } else {
+                        statusClass = 'error';
+                        statusDotClass = account.status || 'error';
+                    }
+                    
+                    const card = document.createElement('div');
+                    card.className = `account-card ${statusClass}`;
+                    card.innerHTML = `
+                        <div class="account-header">
+                            <div class="account-avatar">
+                                ${account.name ? account.name.charAt(0).toUpperCase() : account.phone.slice(-2)}
+                                <div class="account-status-dot ${statusDotClass}" title="${account.status_display}"></div>
+                            </div>
+                            <div class="account-info">
+                                <div class="account-name">${account.name || account.phone}</div>
+                                <div class="account-phone">
+                                    <i class="bi bi-phone"></i>
+                                    ${account.phone}
+                                    <span style="margin-left: 8px; font-size: 11px; color: ${account.is_valid ? '#28a745' : '#dc3545'};">
+                                        ${account.status_display}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="account-body">
+                            <div class="account-stats">
+                                <div class="account-stat">
+                                    <div class="account-stat-value">${account.monitor_count || 0}</div>
+                                    <div class="account-stat-label">监控器</div>
+                                </div>
+                                <div class="account-stat">
+                                    <div class="account-stat-value">${account.user_id || '--'}</div>
+                                    <div class="account-stat-label">用户ID</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="account-actions">
+                            ${account.is_valid ? `
+                                <button class="account-action-btn" onclick="toggleAccount('${account.account_id}')">
+                                    <i class="bi bi-${account.monitor_active ? 'pause' : 'play'}"></i>
+                                    ${account.monitor_active ? '停止' : '启动'}
+                                </button>
+                                <button class="account-action-btn" onclick="window.location.href='/monitors?account=${account.account_id}'">
+                                    <i class="bi bi-eye"></i>
+                                    查看
+                                </button>
+                            ` : `
+                                <button class="account-action-btn warning" onclick="reloginAccount('${account.phone}')">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    需要重新登录
+                                </button>
+                            `}
+                            <button class="account-action-btn danger" onclick="deleteAccount('${account.account_id}', '${account.phone}')">
+                                <i class="bi bi-trash"></i>
+                                删除
+                            </button>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            }
+            
+            if (addAccountCard) {
+                grid.appendChild(addAccountCard);
+            } else {
+                const addCard = document.createElement('div');
+                addCard.className = 'add-account-card';
+                addCard.onclick = showAddAccountModal;
+                addCard.innerHTML = `
+                    <div class="add-account-icon">
+                        <i class="bi bi-plus-lg"></i>
+                    </div>
+                    <div class="add-account-text">添加新账号</div>
+                    <div class="add-account-subtext">点击添加Telegram账号</div>
+                `;
+                grid.appendChild(addCard);
+            }
+            
+            updateAccountStats(accounts);
+            
+        } catch (error) {
+            console.error('Failed to load accounts:', error);
+            showNotification('加载账号列表失败', 'error');
+        }
+    }
+    
+    function updateAccountStats(accounts) {
+        const total = accounts.length;
+        const online = accounts.filter(a => a.is_valid && a.monitor_active).length;
+        const offline = accounts.filter(a => a.is_valid && !a.monitor_active).length;
+        const invalid = accounts.filter(a => !a.is_valid).length;
+        
+        const statValues = document.querySelectorAll('.stat-value');
+        if (statValues[0]) statValues[0].textContent = total;
+        if (statValues[1]) statValues[1].textContent = online;
+        if (statValues[2]) statValues[2].textContent = offline;
+        if (statValues[3]) statValues[3].textContent = invalid;
+    }
+    
+    async function toggleAccount(accountId) {
+        try {
+            const response = await fetch(`/api/accounts/${accountId}/toggle`, {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showNotification('账号状态已更新', 'success');
+                loadAccounts();
+            } else {
+                showNotification('操作失败，请重试', 'error');
+            }
+        } catch (error) {
+            console.error('切换账号状态失败:', error);
+            showNotification('操作失败，请重试', 'error');
+        }
+    }
+    
+    async function deleteAccount(accountId, phone) {
+        if (!confirm(`确定要删除账号 ${phone} 吗？此操作将删除该账号的所有监控器配置，不可恢复！`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/accounts/${accountId}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showNotification(result.message || '账号删除成功', 'success');
+                loadAccounts();
+            } else {
+                showNotification(result.message || '删除失败', 'error');
+            }
+        } catch (error) {
+            console.error('删除账号失败:', error);
+            showNotification('删除失败，请重试', 'error');
+        }
+    }
+    
+    function togglePasswordVisibility() {
+        const passwordInput = document.getElementById('two_factor_password');
+        const toggleButton = document.getElementById('togglePassword');
+        
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            toggleButton.innerHTML = '<i class="bi bi-eye-slash"></i>';
+        } else {
+            passwordInput.type = 'password';
+            toggleButton.innerHTML = '<i class="bi bi-eye"></i>';
+        }
+    }
+    
+    async function reloginAccount(phone) {
+        await showAddAccountModal();
+        
+        setTimeout(() => {
+            const phoneInput = document.getElementById('phone');
+            if (phoneInput) {
+                phoneInput.value = phone;
+                phoneInput.focus();
+                console.log('已填写手机号:', phone);
+            } else {
+                console.error('未找到手机号输入框');
+            }
+        }, 100);
+        
+        showNotification('请重新输入验证码完成账号登录', 'info');
+    }
+    
+    loadAccounts();
+</script>
+{% endblock %}

@@ -1,0 +1,1942 @@
+{% extends "base.html" %}
+
+{% block title %}配置向导 - TG监控系统{% endblock %}
+
+{% block page_title %}配置向导{% endblock %}
+{% block page_subtitle %}快速创建和配置监控器{% endblock %}
+
+{% block extra_css %}
+<style>
+    .wizard-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .wizard-steps {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 40px;
+        position: relative;
+        overflow-x: auto;
+        padding: 10px 0;
+    }
+
+    .wizard-steps::before {
+        content: '';
+        position: absolute;
+        top: 20px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--border-color);
+        z-index: 0;
+    }
+
+    .wizard-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        position: relative;
+        z-index: 1;
+        background: var(--bg-primary);
+        padding: 0 10px;
+        min-width: 80px;
+        flex-shrink: 0;
+    }
+
+    .wizard-step-number {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-full);
+        background: var(--bg-card);
+        border: 2px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: var(--text-muted);
+        transition: all var(--transition-base);
+    }
+
+    .wizard-step.active .wizard-step-number {
+        background: var(--primary-gradient);
+        border-color: transparent;
+        color: white;
+        box-shadow: var(--shadow-glow);
+    }
+
+    .wizard-step.completed .wizard-step-number {
+        background: var(--success-gradient);
+        border-color: transparent;
+        color: white;
+    }
+
+    .wizard-step-title {
+        font-size: 13px;
+        color: var(--text-muted);
+        text-align: center;
+        max-width: 120px;
+        white-space: nowrap;
+    }
+
+    .wizard-step.active .wizard-step-title {
+        color: var(--primary-color);
+        font-weight: 500;
+    }
+
+    .wizard-step.completed .wizard-step-title {
+        color: var(--success-color);
+    }
+
+    .wizard-progress {
+        height: 4px;
+        background: var(--bg-tertiary);
+        border-radius: var(--radius-full);
+        overflow: hidden;
+        margin-bottom: 32px;
+    }
+
+    .wizard-progress-bar {
+        height: 100%;
+        background: var(--primary-gradient);
+        border-radius: var(--radius-full);
+        transition: width var(--transition-slow) ease;
+    }
+
+    .wizard-content {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 32px;
+        min-height: 400px;
+        animation: fadeInUp 0.3s ease;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .wizard-content-header {
+        margin-bottom: 32px;
+    }
+
+    .wizard-content-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+
+    .wizard-content-description {
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+
+    .form-section {
+        margin-bottom: 32px;
+    }
+
+    .form-section-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+    }
+
+    .form-label.required::after {
+        content: ' *';
+        color: var(--danger-color);
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+        width: 100%;
+        padding: 12px 16px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        color: var(--text-primary);
+        font-size: 14px;
+        transition: all var(--transition-base);
+    }
+
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(91, 95, 222, 0.1);
+    }
+
+    .form-textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .form-help {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-top: 6px;
+    }
+
+    .form-error {
+        font-size: 12px;
+        color: var(--danger-color);
+        margin-top: 6px;
+    }
+
+    .form-radio-group,
+    .form-checkbox-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .form-radio,
+    .form-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: all var(--transition-base);
+    }
+
+    .form-radio:hover,
+    .form-checkbox:hover {
+        background: var(--bg-hover);
+        border-color: var(--primary-color);
+    }
+
+    .form-radio.selected,
+    .form-checkbox.selected {
+        background: rgba(91, 95, 222, 0.1);
+        border-color: var(--primary-color);
+    }
+
+    .form-radio input[type="radio"],
+    .form-checkbox input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        accent-color: var(--primary-color);
+    }
+
+    .form-radio-label,
+    .form-checkbox-label {
+        flex: 1;
+    }
+
+    .form-radio-title,
+    .form-checkbox-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+
+    .form-radio-description,
+    .form-checkbox-description {
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+
+    .monitor-type-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .monitor-type-card {
+        padding: 20px;
+        background: var(--bg-tertiary);
+        border: 2px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        text-align: center;
+        cursor: pointer;
+        transition: all var(--transition-base);
+    }
+
+    .monitor-type-card:hover {
+        background: var(--bg-hover);
+        transform: translateY(-2px);
+    }
+
+    .monitor-type-card.selected {
+        background: rgba(91, 95, 222, 0.1);
+        border-color: var(--primary-color);
+    }
+
+    .monitor-type-icon {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 12px;
+        background: rgba(91, 95, 222, 0.1);
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: var(--primary-color);
+    }
+
+    .monitor-type-card.selected .monitor-type-icon {
+        background: var(--primary-gradient);
+        color: white;
+    }
+
+    .monitor-type-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+
+    .monitor-type-desc {
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+
+    .tag-input-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 8px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        min-height: 48px;
+        align-items: center;
+    }
+
+    .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        background: var(--primary-gradient);
+        color: white;
+        border-radius: var(--radius-full);
+        font-size: 13px;
+    }
+
+    .tag-remove {
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+        opacity: 0.8;
+        transition: opacity var(--transition-base);
+    }
+
+    .tag-remove:hover {
+        opacity: 1;
+    }
+
+    .tag-input {
+        flex: 1;
+        min-width: 100px;
+        background: transparent;
+        border: none;
+        color: var(--text-primary);
+        outline: none;
+    }
+
+    .wizard-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .wizard-footer-info {
+        font-size: 13px;
+        color: var(--text-secondary);
+    }
+
+    .wizard-footer-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .preview-panel {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        padding: 20px;
+    }
+
+    .preview-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 16px;
+    }
+
+    .preview-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border-color);
+        font-size: 13px;
+    }
+
+    .preview-item:last-child {
+        border-bottom: none;
+    }
+
+    .preview-label {
+        color: var(--text-secondary);
+    }
+
+    .preview-value {
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+
+    .completion-container {
+        text-align: center;
+        padding: 40px 20px;
+    }
+
+    .completion-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 24px;
+        background: var(--success-gradient);
+        border-radius: var(--radius-full);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+        color: white;
+        animation: scaleIn 0.5s ease;
+    }
+
+    @keyframes scaleIn {
+        from {
+            transform: scale(0);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .completion-title {
+        font-size: 28px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 12px;
+    }
+
+    .completion-message {
+        font-size: 16px;
+        color: var(--text-secondary);
+        margin-bottom: 48px;
+        line-height: 1.6;
+    }
+
+    .action-cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .action-card {
+        background: var(--bg-card);
+        border: 2px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 32px 24px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .action-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        border-color: var(--primary-color);
+    }
+
+    .action-card-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: var(--radius-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        transition: all 0.3s ease;
+    }
+
+    .action-card.primary .action-card-icon {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .action-card.secondary .action-card-icon {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+    }
+
+    .action-card.tertiary .action-card-icon {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+    }
+
+    .action-card:hover .action-card-icon {
+        transform: scale(1.1);
+    }
+
+    .action-card-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .action-card-description {
+        font-size: 14px;
+        color: var(--text-secondary);
+        text-align: center;
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    @media (max-width: 768px) {
+        .wizard-container {
+            padding: 0 16px;
+        }
+
+        .wizard-steps {
+            justify-content: flex-start;
+            gap: 8px;
+        }
+
+        .wizard-step {
+            min-width: 70px;
+            padding: 0 5px;
+        }
+
+        .wizard-step-number {
+            width: 32px;
+            height: 32px;
+            font-size: 14px;
+        }
+
+        .wizard-step-title {
+            font-size: 11px;
+            max-width: 70px;
+        }
+
+        .wizard-content {
+            padding: 20px 16px;
+        }
+
+        .wizard-content-title {
+            font-size: 18px;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .monitor-type-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .monitor-type-card {
+            padding: 16px 12px;
+        }
+
+        .monitor-type-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+        }
+
+        .monitor-type-name {
+            font-size: 13px;
+        }
+
+        .monitor-type-desc {
+            font-size: 11px;
+        }
+
+        .wizard-footer {
+            flex-direction: column;
+            gap: 16px;
+            align-items: stretch;
+        }
+
+        .wizard-footer > div:first-child {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .wizard-footer-actions {
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .wizard-footer-actions .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .completion-container {
+            padding: 30px 16px;
+        }
+
+        .completion-icon {
+            width: 64px;
+            height: 64px;
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+
+        .completion-title {
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+
+        .completion-message {
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+
+        .action-cards {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .action-card {
+            padding: 24px 20px;
+        }
+
+        .action-card-icon {
+            width: 56px;
+            height: 56px;
+            font-size: 28px;
+        }
+
+        .action-card-title {
+            font-size: 16px;
+        }
+
+        .action-card-description {
+            font-size: 13px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .monitor-type-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .wizard-step {
+            min-width: 60px;
+        }
+
+        .wizard-step-title {
+            font-size: 10px;
+            max-width: 60px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wizard-container">
+    <div class="wizard-steps">
+        <div class="wizard-step completed" data-step="1">
+            <div class="wizard-step-number">
+                <i class="bi bi-check"></i>
+            </div>
+            <div class="wizard-step-title">选择类型</div>
+        </div>
+        <div class="wizard-step active" data-step="2">
+            <div class="wizard-step-number">2</div>
+            <div class="wizard-step-title">基础配置</div>
+        </div>
+        <div class="wizard-step" data-step="3">
+            <div class="wizard-step-number">3</div>
+            <div class="wizard-step-title">过滤设置</div>
+        </div>
+        <div class="wizard-step" data-step="4">
+            <div class="wizard-step-number">4</div>
+            <div class="wizard-step-title">通知配置</div>
+        </div>
+        <div class="wizard-step" data-step="5">
+            <div class="wizard-step-number">5</div>
+            <div class="wizard-step-title">确认创建</div>
+        </div>
+    </div>
+
+    <div class="wizard-progress">
+        <div class="wizard-progress-bar" style="width: 40%;"></div>
+    </div>
+
+    <div class="wizard-content">
+                    <div class="step-content" id="step1" style="display: block;">
+            <div class="wizard-content-header">
+                <h2 class="wizard-content-title">选择监控类型</h2>
+                <p class="wizard-content-description">选择要创建的监控器类型</p>
+            </div>
+
+            <form id="step1Form">
+            <div class="monitor-type-grid">
+                <div class="monitor-type-card" data-type="keyword">
+                    <div class="monitor-type-icon">
+                        <i class="bi bi-search"></i>
+                    </div>
+                    <div class="monitor-type-name">关键词监控</div>
+                    <div class="monitor-type-desc">监控包含特定关键词的消息</div>
+                </div>
+
+                <div class="monitor-type-card" data-type="file">
+                    <div class="monitor-type-icon">
+                        <i class="bi bi-file-earmark"></i>
+                    </div>
+                    <div class="monitor-type-name">文件监控</div>
+                    <div class="monitor-type-desc">监控特定类型的文件</div>
+                </div>
+
+                <div class="monitor-type-card" data-type="ai">
+                    <div class="monitor-type-icon">
+                        <i class="bi bi-cpu"></i>
+                    </div>
+                    <div class="monitor-type-name">AI智能监控</div>
+                    <div class="monitor-type-desc">使用AI智能识别消息</div>
+                </div>
+
+                <div class="monitor-type-card" data-type="all">
+                    <div class="monitor-type-icon">
+                        <i class="bi bi-globe"></i>
+                    </div>
+                    <div class="monitor-type-name">全量监控</div>
+                    <div class="monitor-type-desc">监控所有消息</div>
+                </div>
+
+                <div class="monitor-type-card" data-type="button">
+                    <div class="monitor-type-icon">
+                        <i class="bi bi-hand-index"></i>
+                    </div>
+                    <div class="monitor-type-name">按钮监控</div>
+                    <div class="monitor-type-desc">监控并点击按钮</div>
+                </div>
+
+                <div class="monitor-type-card" data-type="image_button">
+                    <div class="monitor-type-icon">
+                        <i class="bi bi-image"></i>
+                    </div>
+                    <div class="monitor-type-name">图片按钮监控</div>
+                    <div class="monitor-type-desc">监控包含图片的按钮</div>
+                </div>
+            </div>
+            </form>
+        </div>
+
+        <div class="step-content" id="step2" style="display: none;">
+            <div class="wizard-content-header">
+                <h2 class="wizard-content-title">基础配置</h2>
+                <p class="wizard-content-description">配置监控器的基本信息和参数</p>
+
+            <form id="wizardForm">
+            <div class="form-section">
+                <h3 class="form-section-title">基本信息</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label required">监控器名称</label>
+                        <input type="text" class="form-input" placeholder="例如：技术交流监控" required>
+                        <div class="form-help">给监控器起一个易于识别的名称</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required">选择账号</label>
+                        <select class="form-select" required>
+                            <option value="">请选择账号</option>
+                        </select>
+                        <div class="form-help">选择用于执行监控的账号</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="form-section-title">监控配置</h3>
+
+                <div id="keyword-config" class="monitor-config" style="display: block;">
+                    <div class="form-group">
+                        <label class="form-label required">监控关键词</label>
+                        <div class="tag-input-container">
+                            <input type="text" class="tag-input" placeholder="输入关键词后按回车">
+                        </div>
+                        <div class="form-help">输入要监控的关键词，支持多个关键词</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">匹配模式</label>
+                        <select class="form-select">
+                            <option value="any">匹配任意关键词</option>
+                            <option value="all">匹配所有关键词</option>
+                            <option value="regex">正则表达式</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="file-config" class="monitor-config" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label required">文件扩展名</label>
+                        <div class="tag-input-container">
+                            <input type="text" class="tag-input" placeholder="例如：pdf, doc, zip">
+                        </div>
+                        <div class="form-help">输入要监控的文件扩展名，多个用逗号分隔</div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">最小文件大小 (MB)</label>
+                            <input type="number" class="form-input" placeholder="不限制" min="0" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">最大文件大小 (MB)</label>
+                            <input type="number" class="form-input" placeholder="不限制" min="0" step="0.1">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="save_files">
+                            自动保存文件到本地
+                        </label>
+                    </div>
+                </div>
+
+                <div id="ai-config" class="monitor-config" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label required">AI提示词</label>
+                        <textarea class="form-input" rows="4" placeholder="描述要监控的消息特征，例如：包含技术讨论的消息"></textarea>
+                        <div class="form-help">AI将根据您的提示词智能识别相关消息</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">温度参数</label>
+                        <input type="range" class="form-range" min="0" max="100" value="70" id="temperature">
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary);">
+                            <span>精确</span>
+                            <span id="temperature-value">0.7</span>
+                            <span>创造性</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="all-config" class="monitor-config" style="display: none;">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        全量监控将捕获所选群组/频道的所有消息
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">监控模式</label>
+                        <select class="form-select">
+                            <option value="all">监控所有消息</option>
+                            <option value="text">仅监控文本消息</option>
+                            <option value="media">仅监控媒体消息</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="button-config" class="monitor-config" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label required">按钮文本</label>
+                        <input type="text" class="form-input" name="button_text" placeholder="例如：立即领取" required>
+                        <div class="form-help">输入要监控的按钮文本</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" name="auto_click">
+                            自动点击按钮
+                        </label>
+                        <div class="form-help">当检测到按钮时自动点击</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">点击延迟 (秒)</label>
+                        <input type="number" class="form-input" name="click_delay" placeholder="5" min="0" max="60" value="5">
+                        <div class="form-help">检测到按钮后等待多久再点击</div>
+                    </div>
+                </div>
+
+                <div id="image_button-config" class="monitor-config" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label required">按钮文本</label>
+                        <input type="text" class="form-input" name="button_text" placeholder="例如：领取奖励" required>
+                        <div class="form-help">输入要监控的按钮文本</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">图片关键词</label>
+                        <input type="text" class="form-input" name="image_keyword" placeholder="可选，用于进一步过滤">
+                        <div class="form-help">图片消息中必须包含的关键词</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" name="save_image">
+                            保存图片到本地
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" name="auto_click">
+                            自动点击按钮
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="form-section-title">监控范围</h3>
+                <div class="form-group">
+                    <label class="form-label">选择要监控的群组/频道</label>
+                    <div id="channels-loading" style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                        <i class="bi bi-arrow-clockwise" style="animation: spin 1s linear infinite;"></i>
+                        正在加载频道列表...
+                    </div>
+                    <div class="form-checkbox-group" id="channels-list" style="display: none;">
+                    </div>
+                    <div class="form-help">选择一个或多个要监控的群组/频道</div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="form-section-title">高级配置</h3>
+
+                <div class="form-group">
+                    <label class="form-label">用户过滤</label>
+                    <div class="form-radio-group">
+                        <label class="form-radio">
+                            <input type="radio" name="filter_mode" value="none" checked>
+                            <span>不过滤</span>
+                        </label>
+                        <label class="form-radio">
+                            <input type="radio" name="filter_mode" value="whitelist">
+                            <span>白名单模式</span>
+                        </label>
+                        <label class="form-radio">
+                            <input type="radio" name="filter_mode" value="blacklist">
+                            <span>黑名单模式</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-grid" id="filter-ids" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">用户ID列表</label>
+                        <textarea class="form-input" name="user_ids" rows="3" placeholder="每行一个ID"></textarea>
+                        <div class="form-help">输入要过滤的用户ID，每行一个</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Bot ID列表</label>
+                        <textarea class="form-input" name="bot_ids" rows="3" placeholder="每行一个ID"></textarea>
+                        <div class="form-help">输入要过滤的Bot ID，每行一个</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">频道ID列表</label>
+                        <textarea class="form-input" name="channel_ids" rows="3" placeholder="每行一个ID"></textarea>
+                        <div class="form-help">输入要过滤的频道ID，每行一个</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">群组ID列表</label>
+                        <textarea class="form-input" name="group_ids" rows="3" placeholder="每行一个ID"></textarea>
+                        <div class="form-help">输入要过滤的群组ID，每行一个</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" name="enhanced_forward" id="enhanced_forward">
+                        启用增强转发
+                    </label>
+                    <div class="form-help">当转发受限时自动下载并重新发送</div>
+                </div>
+
+                <div class="form-group" id="max-download-group" style="display: none;">
+                    <label class="form-label">最大下载大小 (MB)</label>
+                    <input type="number" class="form-input" name="max_download_size" placeholder="50" min="1" max="500">
+                    <div class="form-help">增强转发时的最大文件下载大小</div>
+                </div>
+
+                            <div class="form-group">
+                <label class="form-label">监控优先级</label>
+                <input type="range" class="form-range" name="priority" min="1" max="100" value="50" id="priority">
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary);">
+                    <span>高优先级</span>
+                    <span id="priority-value">50</span>
+                    <span>低优先级</span>
+                </div>
+                <div class="form-help">数值越小优先级越高</div>
+            </div>
+
+                            <div class="form-group">
+                <label class="form-label">最大执行次数</label>
+                <input type="number" class="form-input" name="max_executions" placeholder="不限制" min="1">
+                <div class="form-help">监控器最多执行的次数，留空表示不限制</div>
+            </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="form-section-title">通知配置</h3>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" name="auto_reply" id="auto_reply">
+                        启用自动回复
+                    </label>
+                    <div class="form-help">当监控到匹配的消息时自动回复</div>
+                </div>
+
+                <div class="form-group" id="reply-config" style="display: none;">
+                    <label class="form-label">回复内容</label>
+                    <div class="tag-input-container">
+                        <input type="text" class="tag-input" name="reply_texts" placeholder="输入回复内容后按回车，支持多条">
+                    </div>
+                    <div class="form-help">留空则使用动态回复（关键词监控回复匹配的关键词，AI监控回复AI响应）</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" name="auto_forward" id="auto_forward">
+                        启用自动转发
+                    </label>
+                    <div class="form-help">当监控到匹配的消息时自动转发</div>
+                </div>
+
+                <div class="form-group" id="forward-config" style="display: none;">
+                    <label class="form-label">转发目标ID</label>
+                    <input type="text" class="form-input" name="forward_target_id" placeholder="输入群组或频道ID（多个用逗号分隔）">
+                    <div class="form-help">输入要转发到的群组或频道ID，如：-1001234567890,-1009876543210</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" name="notify_matched">
+                        发送通知
+                    </label>
+                    <div class="form-help">通过系统通知提醒匹配的消息</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" name="save_to_file">
+                        保存到文件
+                    </label>
+                    <div class="form-help">将匹配的消息保存到本地文件</div>
+                </div>
+            </div>
+            </form>
+        </div>
+
+        <div class="step-content" id="step3" style="display: none;">
+            <div class="wizard-content-header">
+                <h2 class="wizard-content-title">通知与转发</h2>
+                <p class="wizard-content-description">配置消息匹配后的操作</p>
+            </div>
+        </div>
+
+        <div class="step-content" id="step4" style="display: none;">
+            <div class="wizard-content-header">
+                <h2 class="wizard-content-title">高级设置</h2>
+                <p class="wizard-content-description">配置过滤规则和执行限制</p>
+            </div>
+        </div>
+
+        <div class="step-content" id="step5" style="display: none;">
+            <div class="wizard-content-header">
+                <h2 class="wizard-content-title">确认创建</h2>
+                <p class="wizard-content-description">检查配置并创建监控器</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentStep = 1;
+    const totalSteps = 5;
+    let currentSession = null;
+    let isEditMode = false;
+    let editKey = '';
+    let editConfig = {};
+
+    window.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const editParam = urlParams.get('edit');
+        const newParam = urlParams.get('new');
+
+        if (newParam === 'true') {
+            console.log('创建新监控器模式 - 清除所有编辑状态');
+            isEditMode = false;
+            editKey = '';
+            editConfig = {};
+            window.history.replaceState({}, '', window.location.pathname);
+            startWizard();
+        }
+        else if (editParam === 'true') {
+            isEditMode = true;
+            editKey = urlParams.get('key') || '';
+            const configParam = urlParams.get('config') || '{}';
+            const accountId = urlParams.get('account_id') || '';
+
+            try {
+                editConfig = JSON.parse(decodeURIComponent(configParam));
+                if (accountId) {
+                    editConfig.account_id = decodeURIComponent(accountId);
+                }
+                console.log('编辑模式，配置:', editConfig);
+
+                startWizard();
+            } catch (e) {
+                console.error('解析配置失败:', e);
+                showNotification('配置数据无效', 'error');
+            }
+        } else {
+            console.log('普通创建模式');
+            isEditMode = false;
+            editKey = '';
+            editConfig = {};
+            startWizard();
+        }
+    });
+
+    async function startWizard() {
+        try {
+            const sessionId = generateSessionId();
+            const requestData = {
+                session_id: sessionId
+            };
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const isForceNew = urlParams.get('new') === 'true';
+
+            if (isForceNew) {
+                requestData.force_new = true;
+                console.log('发送强制新建请求');
+            } else if (isEditMode) {
+                requestData.edit_mode = true;
+                requestData.edit_key = editKey;
+                requestData.edit_config = editConfig;
+                console.log('发送编辑模式请求', editKey);
+            } else {
+                console.log('发送普通创建请求');
+            }
+
+            const response = await fetch('/api/wizard/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            const data = await response.json();
+
+            if (data.session_id) {
+                currentSession = data.session_id;
+                console.log('使用后端session_id:', currentSession);
+            } else {
+                currentSession = sessionId;
+                console.log('使用前端生成的session_id:', currentSession);
+            }
+
+            renderStep(data);
+
+        } catch (error) {
+            console.error('启动向导失败:', error);
+            showNotification('启动向导失败，请重试', 'error');
+        }
+    }
+
+    function generateSessionId() {
+        return 'wizard_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    function renderStep(stepData) {
+        const step = stepData.step_data || stepData;
+
+        if (!step || !step.step) {
+            console.error('Invalid step data:', stepData);
+            return;
+        }
+
+        const container = document.querySelector('.wizard-content');
+        const progressBar = document.querySelector('.wizard-progress-bar');
+
+        if (step.progress) {
+            progressBar.style.width = step.progress.percentage + '%';
+            currentStep = step.progress.current;
+        }
+
+        let formHtml = `
+            <form id="wizard-form" onsubmit="submitStep(event)">
+                <div class="wizard-content-header">
+                    <h2 class="wizard-content-title">${step.step.title}</h2>
+                    <p class="wizard-content-description">${step.step.description}</p>
+                </div>
+        `;
+
+        step.step.fields.forEach(field => {
+            formHtml += renderField(field);
+        });
+
+        formHtml += `
+                <div class="wizard-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; gap: 20px;">
+                        <div class="wizard-footer-info" style="font-size: 13px; color: var(--text-secondary);">
+                            ${step.progress ? `步骤 ${step.progress.current} / ${step.progress.total}` : ''}
+                        </div>
+                        <button type="button" class="btn btn-secondary" onclick="cancelWizard()">
+                            <i class="bi bi-x"></i>
+                            取消
+                        </button>
+                    </div>
+                    <div class="wizard-footer-actions" style="display: flex; gap: 12px;">
+                        <button type="button" class="btn btn-secondary" onclick="goToPreviousStep()"
+                                ${step.progress && step.progress.current <= 1 ? 'disabled' : ''}>
+                            <i class="bi bi-arrow-left"></i>
+                            上一步
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            ${step.progress && step.progress.total && step.progress.current === step.progress.total ?
+                              '<i class="bi bi-check"></i> 完成创建' :
+                              '下一步 <i class="bi bi-arrow-right"></i>'}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        `;
+
+        container.innerHTML = formHtml;
+
+        setupConditionalFields(step.step.fields);
+
+        updateWizardUI();
+    }
+
+    function renderField(field) {
+        const display = field.show === false ? ' style="display: none;"' : '';
+        let html = `<div class="form-group" id="field-${field.name}"${display}>`;
+
+        const currentValue = field.value !== undefined ? field.value :
+                           (isEditMode && editConfig[field.name] !== undefined ? editConfig[field.name] : '');
+
+        if (field.type !== 'checkbox' && field.label) {
+            html += `<label class="form-label${field.required ? ' required' : ''}">${field.label}</label>`;
+        }
+
+        switch (field.type) {
+            case 'text':
+            case 'email':
+                html += `<input type="${field.type}" class="form-input" name="${field.name}"
+                         value="${currentValue}"
+                         placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''}>`;
+                break;
+
+            case 'textarea':
+                html += `<textarea class="form-input" name="${field.name}" rows="${field.rows || 3}"
+                         placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''}>${currentValue}</textarea>`;
+
+                if (field.name === 'email_addresses' && (!currentValue || currentValue.trim() === '')) {
+                    setTimeout(() => loadDefaultEmailForField(field.name), 100);
+                }
+                break;
+
+            case 'select':
+                html += `<select class="form-input" name="${field.name}" ${field.required ? 'required' : ''} ${field.multiple ? 'multiple' : ''}>`;
+                if (field.options) {
+                    field.options.forEach(option => {
+                        const selected = currentValue == option.value ? ' selected' : '';
+                        html += `<option value="${option.value}"${selected}>${option.label}</option>`;
+                    });
+                }
+                html += '</select>';
+                break;
+
+            case 'radio':
+                if (field.options) {
+                    html += '<div class="form-radio-group">';
+                    field.options.forEach(option => {
+                        const checked = currentValue == option.value ? ' checked' : '';
+                        html += `
+                            <label class="form-radio">
+                                <input type="radio" name="${field.name}"
+                                       value="${option.value}" id="${field.name}_${option.value}"
+                                       ${checked} ${field.required ? 'required' : ''}>
+                                <div class="form-radio-label">
+                                    <div class="form-radio-title">${option.label}</div>
+                                    ${option.description ? `<div class="form-radio-description">${option.description}</div>` : ''}
+                                </div>
+                            </label>
+                        `;
+                    });
+                    html += '</div>';
+                }
+                break;
+
+            case 'checkbox':
+                const isChecked = currentValue === true || currentValue === 'true' ||
+                                currentValue === 'on' || (field.default && currentValue === '');
+                html += `
+                    <label class="form-label">
+                        <input type="checkbox" name="${field.name}"
+                               id="${field.name}" ${isChecked ? 'checked' : ''}>
+                        ${field.label}
+                    </label>
+                `;
+                break;
+
+            case 'number':
+                html += `<input type="number" class="form-input" name="${field.name}"
+                         value="${currentValue}"
+                         min="${field.min || ''}" max="${field.max || ''}"
+                         placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''}>`;
+                break;
+
+            case 'range':
+                const rangeValue = currentValue || field.default;
+                html += `
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <input type="range" class="form-range" name="${field.name}"
+                               min="${field.min}" max="${field.max}" step="${field.step || 1}"
+                               value="${rangeValue}" oninput="updateRangeValue('${field.name}', this.value)" style="flex: 1;">
+                        <span id="${field.name}_value" style="min-width: 50px; text-align: right;">${rangeValue}</span>
+                    </div>
+                `;
+                break;
+
+            case 'readonly':
+                html += `<div class="form-control-plaintext" style="padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--radius-md);">${field.value}</div>`;
+                break;
+        }
+
+        if (field.help) {
+            html += `<div class="form-help">${field.help}</div>`;
+        }
+
+        html += '</div>';
+        return html;
+    }
+
+    function setupConditionalFields(fields) {
+        console.log('设置条件字段，所有字段:', fields);
+
+        setTimeout(() => {
+            fields.forEach(field => {
+                if (field.conditional) {
+                    console.log(`字段 ${field.name} 有条件:`, field.conditional);
+
+                    const conditionField = Object.keys(field.conditional)[0];
+                    const conditionValue = field.conditional[conditionField];
+
+                    const toggleField = () => {
+                        const fieldElement = document.getElementById(`field-${field.name}`);
+                        if (!fieldElement) {
+                            console.warn(`找不到字段元素: field-${field.name}`);
+                            return;
+                        }
+
+                        const currentValue = getFieldValue(conditionField);
+                        let shouldShow = false;
+
+                        console.log(`检查条件: ${conditionField}=${currentValue}, 期望=${conditionValue}`);
+
+                        if (typeof conditionValue === 'boolean') {
+                            shouldShow = currentValue === conditionValue;
+                        } else {
+                            shouldShow = currentValue == conditionValue;
+                        }
+
+                        console.log(`字段 ${field.name} 应该显示: ${shouldShow}`);
+                        fieldElement.style.display = shouldShow ? 'block' : 'none';
+
+                        const inputs = fieldElement.querySelectorAll('input, select, textarea');
+                        inputs.forEach(input => {
+                            if (!shouldShow) {
+                                input.removeAttribute('required');
+                            } else {
+                                if (field.required) {
+                                    input.setAttribute('required', '');
+                                }
+                                if (field.name === 'email_addresses' && !input.value.trim()) {
+                                    loadDefaultEmailForField(field.name);
+                                }
+                            }
+                        });
+                    };
+
+                    const allRadios = document.querySelectorAll(`[name="${conditionField}"]`);
+                    allRadios.forEach(radio => {
+                        radio.addEventListener('change', toggleField);
+                    });
+
+                    toggleField();
+                }
+            });
+        }, 200);
+    }
+
+    function getFieldValue(fieldName) {
+        const element = document.querySelector(`[name="${fieldName}"]`);
+        if (!element) return null;
+
+        if (element.type === 'checkbox') {
+            return element.checked;
+        } else if (element.type === 'radio') {
+            const checked = document.querySelector(`[name="${fieldName}"]:checked`);
+            return checked ? checked.value : null;
+        } else {
+            return element.value;
+        }
+    }
+
+    async function submitStep(event) {
+        event.preventDefault();
+
+        const formData = new FormData(event.target);
+        const data = {};
+
+        for (const [key, value] of formData.entries()) {
+            if (key.endsWith('[]')) {
+                const arrayKey = key.slice(0, -2);
+                if (!data[arrayKey]) data[arrayKey] = [];
+                data[arrayKey].push(value);
+            } else {
+                data[key] = value;
+            }
+        }
+
+        const checkboxes = document.querySelectorAll('#wizard-form input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            if (!data.hasOwnProperty(checkbox.name)) {
+                data[checkbox.name] = checkbox.checked;
+            }
+        });
+
+        try {
+            console.log('提交步骤，session_id:', currentSession);
+            console.log('提交的数据:', data);
+
+            const response = await fetch('/api/wizard/step', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    session_id: currentSession,
+                    ...data
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                if (result.next_step) {
+                    renderStep(result.next_step);
+                } else {
+                    showCompletionMessage(result.message);
+                }
+            } else {
+                if (result.errors) {
+                    showErrors(result.errors);
+                } else if (result.message) {
+                    showErrors([result.message]);
+                } else if (result.detail) {
+                    if (Array.isArray(result.detail)) {
+                        const errors = result.detail.map(err => `${err.loc.join('.')}: ${err.msg}`);
+                        showErrors(errors);
+                    } else {
+                        showErrors([result.detail]);
+                    }
+                } else {
+                    showErrors(['请求失败，请检查输入并重试']);
+                }
+            }
+
+        } catch (error) {
+            console.error('提交步骤失败:', error);
+            showErrors(['提交失败，请重试']);
+        }
+    }
+
+    function showErrors(errors) {
+        if (!errors) {
+            errors = ['发生未知错误，请重试'];
+        } else if (typeof errors === 'string') {
+            errors = [errors];
+        } else if (!Array.isArray(errors)) {
+            errors = ['发生未知错误，请重试'];
+        }
+
+        const errorHtml = errors.map(error =>
+            `<div class="alert alert-danger alert-dismissible fade show" style="background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger-color); color: var(--danger-color); padding: 16px; border-radius: var(--radius-md); margin-bottom: 16px;">
+                <i class="bi bi-exclamation-circle"></i>
+                ${error}
+                <button type="button" class="btn-close" onclick="this.parentElement.remove()" style="background: transparent; border: none; color: var(--danger-color); cursor: pointer; float: right;">×</button>
+            </div>`
+        ).join('');
+
+        const container = document.querySelector('.wizard-content');
+        const existingAlerts = container.querySelectorAll('.alert-danger');
+        existingAlerts.forEach(alert => alert.remove());
+
+        container.insertAdjacentHTML('afterbegin', errorHtml);
+
+        setTimeout(() => {
+            const alerts = container.querySelectorAll('.alert-danger');
+            alerts.forEach(alert => alert.remove());
+        }, 5000);
+    }
+
+    function showCompletionMessage(message) {
+        const container = document.querySelector('.wizard-content');
+        container.innerHTML = `
+            <div class="completion-container">
+                <div class="completion-icon">
+                    <i class="bi bi-check"></i>
+                </div>
+                <h3 class="completion-title">配置完成!</h3>
+                <p class="completion-message">${message}</p>
+                
+                <div class="action-cards">
+                    <a href="/monitors" class="action-card">
+                        <div class="action-card-icon">
+                            <i class="bi bi-eye"></i>
+                        </div>
+                        <h4 class="action-card-title">查看监控器</h4>
+                        <p class="action-card-description">查看和管理所有已创建的监控器</p>
+                    </a>
+                    
+                    <button class="action-card" onclick="createNewMonitor()">
+                        <div class="action-card-icon">
+                            <i class="bi bi-plus-circle"></i>
+                        </div>
+                        <h4 class="action-card-title">创建新监控器</h4>
+                        <p class="action-card-description">快速创建另一个监控任务</p>
+                    </button>
+                    
+                    <a href="/" class="action-card">
+                        <div class="action-card-icon">
+                            <i class="bi bi-speedometer2"></i>
+                        </div>
+                        <h4 class="action-card-title">查看仪表板</h4>
+                        <p class="action-card-description">查看系统概览和统计数据</p>
+                    </a>
+                </div>
+            </div>
+        `;
+
+        document.querySelector('.wizard-progress-bar').style.width = '100%';
+    }
+
+    function cancelWizard() {
+        if (confirm('确定要取消配置向导吗？已填写的信息将丢失。')) {
+            window.location.href = '/monitors';
+        }
+    }
+
+    function createNewMonitor() {
+        const baseUrl = window.location.pathname;
+        window.location.href = baseUrl + '?new=true&timestamp=' + Date.now();
+    }
+
+    async function goToPreviousStep() {
+        try {
+            const response = await fetch('/api/wizard/previous', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    session_id: currentSession
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                renderStep(result.step_data);
+            } else {
+                showErrors(['无法返回上一步']);
+            }
+
+        } catch (error) {
+            console.error('返回上一步失败:', error);
+            showErrors(['返回上一步失败']);
+        }
+    }
+
+    function updateRangeValue(fieldName, value) {
+        const display = document.getElementById(fieldName + '_value');
+        if (display) {
+            display.textContent = value;
+        }
+    }
+
+    function nextStep() {
+        if (currentStep < totalSteps) {
+            if (!validateCurrentStep()) {
+                return;
+            }
+
+            currentStep++;
+            updateWizardUI();
+            loadStepContent();
+        }
+    }
+
+    function previousStep() {
+        goToPreviousStep();
+    }
+
+    function updateWizardUI() {
+        document.querySelectorAll('.wizard-step').forEach((step, index) => {
+            const stepNum = index + 1;
+            step.classList.remove('active', 'completed');
+
+            if (stepNum < currentStep) {
+                step.classList.add('completed');
+                step.querySelector('.wizard-step-number').innerHTML = '<i class="bi bi-check"></i>';
+            } else if (stepNum === currentStep) {
+                step.classList.add('active');
+                step.querySelector('.wizard-step-number').textContent = stepNum;
+            } else {
+                step.querySelector('.wizard-step-number').textContent = stepNum;
+            }
+        });
+
+        const progress = (currentStep / totalSteps) * 100;
+        document.querySelector('.wizard-progress-bar').style.width = progress + '%';
+
+    }
+
+    function validateCurrentStep() {
+        if (currentStep === 1) {
+            const selectedType = document.querySelector('.monitor-type-card.selected');
+            if (!selectedType) {
+                alert('请选择一个监控类型');
+                return false;
+            }
+            return true;
+        }
+
+        const form = document.getElementById('wizardForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return false;
+        }
+        return true;
+    }
+
+    function loadStepContent() {
+        document.querySelectorAll('.step-content').forEach(step => {
+            step.style.display = 'none';
+        });
+
+        const stepEl = document.getElementById(`step${currentStep}`);
+        if (stepEl) {
+            stepEl.style.display = 'block';
+        }
+
+        const content = document.querySelector('.wizard-content');
+        content.style.animation = 'none';
+        setTimeout(() => {
+            content.style.animation = 'fadeInUp 0.3s ease';
+        }, 10);
+    }
+
+    function submitWizard() {
+        if (!validateCurrentStep()) {
+            return;
+        }
+
+        console.log('Submitting wizard data...');
+
+        alert('监控器创建成功！');
+
+        window.location.href = '/monitors';
+    }
+
+    document.querySelector('.tag-input')?.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const value = this.value.trim();
+            if (value) {
+                addTag(value);
+                this.value = '';
+            }
+        }
+    });
+
+    function addTag(text) {
+        const container = document.querySelector('.tag-input-container');
+        const input = container.querySelector('.tag-input');
+
+        const tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.innerHTML = `
+            ${text}
+            <span class="tag-remove" onclick="removeTag(this)">&times;</span>
+        `;
+
+        container.insertBefore(tag, input);
+    }
+
+    function removeTag(element) {
+        element.parentElement.remove();
+    }
+
+    document.querySelectorAll('.form-checkbox input').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const parent = this.closest('.form-checkbox');
+            if (this.checked) {
+                parent.classList.add('selected');
+            } else {
+                parent.classList.remove('selected');
+            }
+        });
+    });
+
+    let selectedMonitorType = 'keyword';
+
+    document.querySelectorAll('.monitor-type-card').forEach(card => {
+        card.addEventListener('click', function() {
+            document.querySelectorAll('.monitor-type-card').forEach(c => {
+                c.classList.remove('selected');
+            });
+
+            this.classList.add('selected');
+            selectedMonitorType = this.getAttribute('data-type');
+
+            document.querySelectorAll('.monitor-config').forEach(config => {
+                config.style.display = 'none';
+            });
+
+            const configId = selectedMonitorType + '-config';
+            const configElement = document.getElementById(configId);
+            if (configElement) {
+                configElement.style.display = 'block';
+            }
+        });
+    });
+
+    document.querySelectorAll('input[name="filter_mode"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const filterIds = document.getElementById('filter-ids');
+            if (this.value === 'whitelist' || this.value === 'blacklist') {
+                filterIds.style.display = 'block';
+            } else {
+                filterIds.style.display = 'none';
+            }
+        });
+    });
+
+    document.getElementById('enhanced_forward')?.addEventListener('change', function() {
+        const maxDownloadGroup = document.getElementById('max-download-group');
+        if (this.checked) {
+            maxDownloadGroup.style.display = 'block';
+        } else {
+            maxDownloadGroup.style.display = 'none';
+        }
+    });
+
+    document.getElementById('auto_reply')?.addEventListener('change', function() {
+        const replyConfig = document.getElementById('reply-config');
+        if (this.checked) {
+            replyConfig.style.display = 'block';
+        } else {
+            replyConfig.style.display = 'none';
+        }
+    });
+
+    document.getElementById('auto_forward')?.addEventListener('change', function() {
+        const forwardConfig = document.getElementById('forward-config');
+        if (this.checked) {
+            forwardConfig.style.display = 'block';
+        } else {
+            forwardConfig.style.display = 'none';
+        }
+    });
+
+    document.getElementById('priority')?.addEventListener('input', function() {
+        document.getElementById('priority-value').textContent = this.value;
+    });
+
+    document.getElementById('temperature')?.addEventListener('input', function() {
+        document.getElementById('temperature-value').textContent = (this.value / 100).toFixed(1);
+    });
+
+
+    document.querySelectorAll('.monitor-type-card').forEach(card => {
+        card.addEventListener('click', function() {
+            if (currentSession) return;
+
+            document.querySelectorAll('.monitor-type-card').forEach(c => {
+                c.classList.remove('selected');
+            });
+
+            this.classList.add('selected');
+            selectedMonitorType = this.getAttribute('data-type');
+
+            document.querySelectorAll('.monitor-config').forEach(config => {
+                config.style.display = 'none';
+            });
+
+            const configId = selectedMonitorType + '-config';
+            const configElement = document.getElementById(configId);
+            if (configElement) {
+                configElement.style.display = 'block';
+            }
+        });
+    });
+
+    function loadAccounts() {
+        fetch('/api/accounts')
+            .then(res => res.json())
+            .then(data => {
+                const accounts = data.accounts || [];
+                const select = document.querySelector('select.form-select');
+                if (select && select.options.length <= 1) {
+                    accounts.forEach(account => {
+                        const option = document.createElement('option');
+                        option.value = account.account_id;
+                        option.textContent = `${account.phone} ${account.name ? '(' + account.name + ')' : ''}`;
+                        select.appendChild(option);
+                    });
+
+                    if (isEditMode && editConfig.account_id) {
+                        select.value = editConfig.account_id;
+                    }
+                }
+            })
+            .catch(err => console.error('Failed to load accounts:', err));
+    }
+
+    function loadChannels() {
+        const accountSelect = document.querySelector('select.form-select');
+        if (!accountSelect || !accountSelect.value) return;
+
+        const loadingDiv = document.getElementById('channels-loading');
+        const channelsList = document.getElementById('channels-list');
+
+        if (loadingDiv) loadingDiv.style.display = 'block';
+        if (channelsList) {
+            channelsList.style.display = 'none';
+            channelsList.innerHTML = '';
+        }
+
+        fetch(`/api/accounts/${accountSelect.value}/channels`)
+            .then(res => res.json())
+            .then(data => {
+                if (loadingDiv) loadingDiv.style.display = 'none';
+                if (channelsList) {
+                    channelsList.style.display = 'block';
+
+                    const channels = data.channels || [];
+                    if (channels.length === 0) {
+                        channelsList.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">暂无可用的群组/频道</div>';
+                    } else {
+                        channels.forEach(channel => {
+                            const checkbox = document.createElement('label');
+                            checkbox.className = 'form-checkbox';
+                            checkbox.innerHTML = `
+                                <input type="checkbox" name="channels[]" value="${channel.id}">
+                                <div class="form-checkbox-label">
+                                    <div class="form-checkbox-title">${channel.name || '未命名'}</div>
+                                    <div class="form-checkbox-description">ID: ${channel.id}</div>
+                                </div>
+                            `;
+                            channelsList.appendChild(checkbox);
+                        });
+                    }
+                }
+            })
+            .catch(err => {
+                console.error('Failed to load channels:', err);
+                if (loadingDiv) loadingDiv.style.display = 'none';
+                if (channelsList) {
+                    channelsList.style.display = 'block';
+                    channelsList.innerHTML = '<div style="color: var(--danger-color); text-align: center; padding: 20px;">加载失败，请重试</div>';
+                }
+            });
+    }
+
+    document.addEventListener('change', function(e) {
+        if (e.target.matches('select.form-select') && e.target.closest('#step2')) {
+            loadChannels();
+        }
+    });
+
+    async function loadDefaultEmailForField(fieldName) {
+        try {
+            const response = await fetch('/api/email/settings');
+            const data = await response.json();
+            
+            if (data.success && data.settings.default_email) {
+                const field = document.querySelector(`[name="${fieldName}"]`);
+                if (field && !field.value.trim()) {
+                    field.value = data.settings.default_email;
+                    console.log(`已为字段 ${fieldName} 设置默认邮箱: ${data.settings.default_email}`);
+                }
+            }
+        } catch (error) {
+            console.error('加载默认邮箱失败:', error);
+        }
+    }
+</script>
+{% endblock %}

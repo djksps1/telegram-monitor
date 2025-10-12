@@ -1,0 +1,1470 @@
+{% extends "base.html" %}
+
+{% block title %}监控器管理 - TG监控系统{% endblock %}
+
+{% block page_title %}监控器管理{% endblock %}
+{% block page_subtitle %}配置和管理您的消息监控规则{% endblock %}
+
+{% block extra_css %}
+<style>
+    .monitors-container {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+    
+    .monitor-types {
+        display: flex;
+        gap: 12px;
+        padding: 16px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        overflow-x: auto;
+    }
+    
+    .monitor-type-tag {
+        padding: 8px 16px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-full);
+        color: var(--text-secondary);
+        font-size: 14px;
+        cursor: pointer;
+        transition: all var(--transition-base);
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .monitor-type-tag:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+    }
+    
+    .monitor-type-tag.active {
+        background: var(--primary-gradient);
+        color: white;
+        border-color: transparent;
+    }
+    
+    .monitor-type-count {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 2px 6px;
+        border-radius: var(--radius-full);
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .monitors-table {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 800px;
+    }
+    
+    .table thead {
+        background: var(--bg-tertiary);
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .table th {
+        padding: 16px 20px;
+        text-align: left;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .table tbody tr {
+        border-bottom: 1px solid var(--border-color);
+        transition: all var(--transition-base);
+    }
+    
+    .table tbody tr:last-child {
+        border-bottom: none;
+    }
+    
+    .table tbody tr:hover {
+        background: var(--bg-hover);
+    }
+    
+    .table td {
+        padding: 16px 20px;
+        font-size: 14px;
+        color: var(--text-primary);
+    }
+    
+    .monitor-type-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        background: rgba(91, 95, 222, 0.1);
+        border-radius: var(--radius-full);
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--primary-color);
+        white-space: nowrap;
+    }
+    
+    .monitor-type-badge.keyword {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success-color);
+    }
+    
+    .monitor-type-badge.file {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning-color);
+    }
+    
+    .monitor-type-badge.ai {
+        background: rgba(139, 92, 246, 0.1);
+        color: #8B5CF6;
+    }
+    
+    .monitor-type-badge.button {
+        background: rgba(236, 72, 153, 0.1);
+        color: #ec4899;
+    }
+    
+    .monitor-type-badge.imagebutton {
+        background: rgba(168, 85, 247, 0.1);
+        color: #a855f7;
+    }
+    
+    .monitor-type-badge.all {
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--info-color);
+    }
+    
+    .switch {
+        position: relative;
+        width: 44px;
+        height: 24px;
+        background: var(--bg-tertiary);
+        border-radius: var(--radius-full);
+        cursor: pointer;
+        transition: all var(--transition-base);
+    }
+    
+    .switch.active {
+        background: var(--success-gradient);
+    }
+    
+    .switch-handle {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 20px;
+        height: 20px;
+        background: white;
+        border-radius: var(--radius-full);
+        transition: all var(--transition-base);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .switch.active .switch-handle {
+        transform: translateX(20px);
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .action-btn {
+        width: 32px;
+        height: 32px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all var(--transition-base);
+        color: var(--text-secondary);
+    }
+    
+    .action-btn:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+        border-color: var(--primary-color);
+    }
+    
+    .action-btn.edit:hover {
+        color: var(--primary-color);
+    }
+    
+    .action-btn.delete:hover {
+        color: var(--danger-color);
+        border-color: var(--danger-color);
+        background: rgba(239, 68, 68, 0.1);
+    }
+    
+    .monitor-detail-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+        margin-bottom: 16px;
+        transition: all var(--transition-base);
+    }
+    
+    .monitor-detail-card:hover {
+        border-color: var(--primary-color);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .monitor-detail-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+    }
+    
+    .monitor-detail-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .monitor-detail-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .monitor-detail-body {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+    }
+    
+    .monitor-detail-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .monitor-detail-label {
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+    
+    .monitor-detail-value {
+        font-size: 14px;
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+    
+    .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 24px;
+    }
+    
+    .page-btn {
+        padding: 8px 12px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all var(--transition-base);
+        font-size: 14px;
+    }
+    
+    .page-btn:hover:not(:disabled) {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+        border-color: var(--primary-color);
+    }
+    
+    .page-btn.active {
+        background: var(--primary-gradient);
+        color: white;
+        border-color: transparent;
+    }
+    
+    .page-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .empty-monitors {
+        text-align: center;
+        padding: 60px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+    }
+    
+    .empty-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 20px;
+        background: rgba(91, 95, 222, 0.1);
+        border-radius: var(--radius-full);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 36px;
+        color: var(--primary-color);
+    }
+    
+    .empty-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+    
+    .empty-text {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-bottom: 24px;
+    }
+    
+    @media (max-width: 768px) {
+        .monitor-config-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            position: relative;
+            padding-bottom: 20px; /* 为滚动条留出空间 */
+        }
+        
+        .monitor-config-grid {
+            min-width: 800px !important;
+            grid-template-columns: minmax(350px, 1fr) minmax(350px, 1fr) !important;
+            gap: 16px;
+        }
+        
+        .monitor-config-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        
+        .monitor-config-container::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+            margin: 0 8px;
+        }
+        
+        .monitor-config-container::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+            opacity: 0.8;
+        }
+        
+        .monitor-config-container::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-color);
+            opacity: 1;
+        }
+        
+        .monitor-config-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 20px;
+            height: 100%;
+            background: linear-gradient(to left, rgba(0,0,0,0.1), transparent);
+            pointer-events: none;
+            opacity: 0.5;
+        }
+        
+        .monitor-config-grid > div {
+            min-width: 320px;
+        }
+        
+        .monitor-config-grid p {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .monitors-table {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(91, 95, 222, 0.3) transparent;
+        }
+        
+        .monitors-table::-webkit-scrollbar {
+            height: 6px;
+        }
+        
+        .monitors-table::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 3px;
+        }
+        
+        .monitors-table::-webkit-scrollbar-thumb {
+            background: rgba(91, 95, 222, 0.5);
+            border-radius: 3px;
+        }
+        
+        .monitors-table::-webkit-scrollbar-thumb:hover {
+            background: rgba(91, 95, 222, 0.7);
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .monitor-config-grid {
+            min-width: 700px !important;
+            grid-template-columns: 320px 320px !important;
+            gap: 12px;
+        }
+        
+        .monitor-config-container {
+            padding: 12px;
+            margin: 0 -8px; /* 扩展到屏幕边缘 */
+        }
+    }
+
+    .account-selector-wrapper {
+        position: relative;
+        flex: 1;
+        min-width: 200px;
+        max-width: 400px;
+    }
+
+    .account-selector-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .account-selector-label i {
+        color: var(--primary-color);
+    }
+
+    #account-selector {
+        width: 100%;
+        height: 44px;
+        padding: 0 16px;
+        font-size: 14px;
+        font-weight: 500;
+        background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-tertiary) 100%);
+        border: 2px solid var(--border-color);
+        border-radius: var(--radius-md);
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%235B5FDE' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 40px;
+    }
+
+    #account-selector:hover {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(91, 95, 222, 0.1);
+    }
+
+    #account-selector:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 4px rgba(91, 95, 222, 0.15);
+    }
+    
+    .config-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        padding: 20px;
+        overflow-y: auto;
+    }
+
+    .config-modal-content {
+        background: var(--bg-secondary);
+        border-radius: var(--radius-lg);
+        width: 100%;
+        max-width: 900px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        margin: auto;
+    }
+
+    .config-modal-header {
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-shrink: 0;
+        background: var(--bg-secondary);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .config-modal-header h5 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .config-modal-close {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-md);
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        color: var(--text-secondary);
+    }
+
+    .config-modal-close:hover {
+        background: var(--danger-color);
+        border-color: var(--danger-color);
+        color: white;
+    }
+
+    .config-modal-body {
+        padding: 24px;
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .monitor-config-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+
+    .json-details {
+        margin-top: 24px;
+        border-top: 1px solid var(--border-color);
+        padding-top: 24px;
+    }
+
+    .json-details summary {
+        cursor: pointer;
+        color: var(--primary-color);
+        font-weight: 600;
+        padding: 12px;
+        background: var(--bg-tertiary);
+        border-radius: var(--radius-md);
+        transition: all 0.2s;
+        user-select: none;
+    }
+
+    .json-details summary:hover {
+        background: var(--bg-hover);
+    }
+
+    .json-details pre {
+        background: var(--bg-tertiary);
+        padding: 16px;
+        border-radius: var(--radius-md);
+        font-size: 12px;
+        margin-top: 12px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        overflow-x: auto;
+        max-height: 400px;
+        overflow-y: auto;
+        line-height: 1.5;
+    }
+    
+    @media (max-width: 768px) {
+        .config-modal-content {
+            max-height: 95vh;
+        }
+        
+        .config-modal-body {
+            padding: 16px;
+        }
+        
+        .monitor-config-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        
+        .monitors-table {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(91, 95, 222, 0.3) transparent;
+        }
+        
+        .monitors-table::-webkit-scrollbar {
+            height: 6px;
+        }
+        
+        .monitors-table::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 3px;
+        }
+        
+        .monitors-table::-webkit-scrollbar-thumb {
+            background: rgba(91, 95, 222, 0.5);
+            border-radius: 3px;
+        }
+        
+        .monitors-table::-webkit-scrollbar-thumb:hover {
+            background: rgba(91, 95, 222, 0.7);
+        }
+        
+        .account-selector-wrapper {
+            max-width: 100%;
+        }
+        
+        .pagination {
+            flex-wrap: wrap;
+        }
+        
+        .page-info {
+            width: 100%;
+            text-align: center;
+            margin-top: 8px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .config-modal-header {
+            padding: 16px;
+        }
+        
+        .config-modal-header h5 {
+            font-size: 16px;
+        }
+        
+        .monitor-config-grid {
+            gap: 12px;
+        }
+        
+        .json-details pre {
+            font-size: 11px;
+            padding: 12px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 24px;">
+    <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end;">
+        <div class="account-selector-wrapper">
+            <label for="account-selector" class="account-selector-label">
+                <i class="bi bi-person-circle"></i>
+                <span>选择账号</span>
+            </label>
+            <select class="form-input" id="account-selector">
+                <option value="">加载账号中...</option>
+            </select>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-left: auto;">
+            <button class="btn btn-primary" onclick="createNewMonitor()" style="height: 44px; padding: 0 20px; font-weight: 600;">
+                <i class="bi bi-plus-lg"></i>
+                创建监控器
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="monitor-types">
+    <div class="monitor-type-tag active">
+        <span>全部</span>
+        <span class="monitor-type-count">-</span>
+    </div>
+    <div class="monitor-type-tag">
+        <i class="bi bi-search"></i>
+        <span>关键词监控</span>
+        <span class="monitor-type-count">-</span>
+    </div>
+    <div class="monitor-type-tag">
+        <i class="bi bi-file-earmark"></i>
+        <span>文件监控</span>
+        <span class="monitor-type-count">-</span>
+    </div>
+    <div class="monitor-type-tag">
+        <i class="bi bi-hand-index"></i>
+        <span>按钮监控</span>
+        <span class="monitor-type-count">-</span>
+    </div>
+    <div class="monitor-type-tag">
+        <i class="bi bi-image"></i>
+        <span>图片按钮监控</span>
+        <span class="monitor-type-count">-</span>
+    </div>
+    <div class="monitor-type-tag">
+        <i class="bi bi-cpu"></i>
+        <span>AI监控</span>
+        <span class="monitor-type-count">-</span>
+    </div>
+    <div class="monitor-type-tag">
+        <i class="bi bi-globe"></i>
+        <span>全量监控</span>
+        <span class="monitor-type-count">-</span>
+    </div>
+</div>
+
+<div class="monitors-container">
+    <div class="monitors-table">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">
+                        <input type="checkbox" style="cursor: pointer;">
+                    </th>
+                    <th>监控器名称</th>
+                    <th>类型</th>
+                    <th>状态</th>
+                    <th>执行次数</th>
+                    <th>优先级</th>
+                    <th>创建时间</th>
+                    <th style="width: 120px;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="pagination" id="pagination-container">
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.querySelectorAll('.monitor-type-tag').forEach(tag => {
+        tag.addEventListener('click', function() {
+            document.querySelectorAll('.monitor-type-tag').forEach(t => {
+                t.classList.remove('active');
+            });
+            this.classList.add('active');
+            
+            const type = this.textContent.trim();
+            
+            if (type.includes('全部')) {
+                currentFilter = 'all';
+            } else if (type.includes('关键词')) {
+                currentFilter = 'KeywordMonitor';
+            } else if (type.includes('文件')) {
+                currentFilter = 'FileMonitor';
+            } else if (type.includes('AI')) {
+                currentFilter = 'AIMonitor';
+            } else if (type.includes('按钮监控') && !type.includes('图片')) {
+                currentFilter = 'ButtonMonitor';
+            } else if (type.includes('图片按钮')) {
+                currentFilter = 'ImageButtonMonitor';
+            } else if (type.includes('全量')) {
+                currentFilter = 'AllMessagesMonitor';
+            }
+            
+            filterMonitors();
+            
+            currentPage = 1;
+            renderMonitorsList(filteredMonitors);
+        });
+    });
+    
+    document.querySelectorAll('.switch').forEach(switchEl => {
+        switchEl.addEventListener('click', function() {
+            this.classList.toggle('active');
+            const isActive = this.classList.contains('active');
+            console.log('Monitor status changed:', isActive);
+            
+        });
+    });
+    
+    document.querySelectorAll('.action-btn.edit').forEach(btn => {
+        btn.addEventListener('click', function() {
+            console.log('Edit monitor');
+        });
+    });
+    
+    document.querySelector('.monitors-table')?.addEventListener('click', function(e) {
+        const deleteBtn = e.target.closest('.action-btn.delete');
+        if (deleteBtn) {
+            if (confirm('确定要删除这个监控器吗？')) {
+                console.log('Delete monitor');
+            }
+        }
+    });
+    
+    const selectAllCheckbox = document.querySelector('thead input[type="checkbox"]');
+    const rowCheckboxes = document.querySelectorAll('tbody input[type="checkbox"]');
+    
+    selectAllCheckbox?.addEventListener('change', function() {
+        rowCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+    });
+    
+    let currentAccount = '';
+    let monitors = [];
+    let filteredMonitors = [];
+    let currentFilter = 'all';
+    let currentPage = 1;
+    let itemsPerPage = 10;
+    let totalPages = 1;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        loadAccounts();
+        
+        document.getElementById('account-selector').addEventListener('change', function() {
+            currentAccount = this.value;
+            if (currentAccount) {
+                currentFilter = 'all';
+                currentPage = 1;
+                document.querySelectorAll('.monitor-type-tag').forEach(t => t.classList.remove('active'));
+                document.querySelector('.monitor-type-tag').classList.add('active');
+                loadMonitors(currentAccount);
+            } else {
+                clearMonitorsList();
+            }
+        });
+    });
+    
+    async function loadAccounts() {
+        try {
+            const response = await fetch('/api/accounts');
+            const data = await response.json();
+            const accounts = data.accounts || [];
+            
+            const selector = document.getElementById('account-selector');
+            
+            if (accounts.length === 0) {
+                selector.innerHTML = '<option value="">暂无账号</option>';
+                return;
+            }
+            
+            let html = '<option value="">请选择账号</option>';
+            accounts.forEach(account => {
+                html += `<option value="${account.account_id}">${account.phone} (${account.monitor_count || 0} 个监控器)</option>`;
+            });
+            
+            selector.innerHTML = html;
+            
+            if (accounts.length > 0) {
+                selector.value = accounts[0].account_id;
+                currentAccount = accounts[0].account_id;
+                loadMonitors(currentAccount);
+            }
+            
+        } catch (error) {
+            console.error('加载账号失败:', error);
+            document.getElementById('account-selector').innerHTML = '<option value="">加载失败</option>';
+        }
+    }
+    
+    async function loadMonitors(accountId) {
+        const tbody = document.querySelector('.monitors-table tbody');
+        
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                    <i class="bi bi-arrow-clockwise" style="animation: spin 1s linear infinite; font-size: 24px;"></i>
+                    <p style="margin-top: 16px;">加载监控器中...</p>
+                </td>
+            </tr>
+        `;
+        
+        try {
+            const response = await fetch(`/api/monitors/${accountId}`);
+            monitors = await response.json();
+            
+            updateMonitorStats(monitors);
+            currentFilter = 'all';
+            filterMonitors();
+            renderMonitorsList(filteredMonitors);
+            
+        } catch (error) {
+            console.error('加载监控器失败:', error);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 40px; color: var(--danger-color);">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 24px;"></i>
+                        <p style="margin-top: 16px;">加载失败: ${error.message}</p>
+                        <button class="btn btn-secondary" onclick="loadMonitors(currentAccount)" style="margin-top: 16px;">重试</button>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+    
+    function renderMonitorsList(monitors) {
+        const tbody = document.querySelector('.monitors-table tbody');
+        
+        if (monitors.length === 0) {
+            const emptyMessage = currentFilter === 'all' ? 
+                '暂无监控器<br>点击右上角按钮创建您的第一个监控器' : 
+                `暂无${getMonitorTypeName(currentFilter)}<br>点击筛选标签切换查看其他类型`;
+            
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 60px; color: var(--text-muted);">
+                        <div class="empty-icon" style="margin-bottom: 24px;">
+                            <i class="bi bi-inbox"></i>
+                        </div>
+                        <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">${emptyMessage.split('<br>')[0]}</div>
+                        <p class="empty-text">${emptyMessage.split('<br>')[1]}</p>
+                        ${currentFilter === 'all' ? `<button class="btn btn-primary" onclick="createNewMonitor()" style="margin-top: 16px;">
+                            <i class="bi bi-plus"></i>
+                            创建监控器
+                        </button>` : ''}
+                    </td>
+                </tr>
+            `;
+            updatePagination(0);
+            return;
+        }
+        
+        totalPages = Math.ceil(monitors.length / itemsPerPage);
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const currentMonitors = monitors.slice(startIndex, endIndex);
+        
+        let html = '';
+        currentMonitors.forEach((monitor, index) => {
+            const typeIcon = getMonitorTypeIcon(monitor.monitor_type);
+            const typeName = getMonitorTypeName(monitor.monitor_type);
+            const statusBadge = getMonitorStatusBadge(monitor);
+            
+            html += `
+                <tr>
+                    <td><input type="checkbox" data-monitor-key="${monitor.key}"></td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="${typeIcon}"></i>
+                            <span>${getMonitorDisplayName(monitor)}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="monitor-type-badge ${monitor.monitor_type.toLowerCase().replace('monitor', '')}">
+                            <i class="${typeIcon}"></i>
+                            ${typeName}
+                        </span>
+                    </td>
+                    <td>${statusBadge}</td>
+                    <td>
+                        ${monitor.execution_count || 0}
+                        ${monitor.max_executions ? `/ ${monitor.max_executions}` : ''}
+                    </td>
+                    <td>${monitor.config.priority || 50}</td>
+                    <td>${formatDate(monitor.created_at || new Date().toISOString())}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="action-btn ${monitor.config.active !== false ? 'warning' : 'success'}" 
+                                    onclick="toggleMonitorStatus('${monitor.key}', ${monitor.config.active !== false})" 
+                                    title="${monitor.config.active !== false ? '暂停' : '启动'}">
+                                <i class="bi bi-${monitor.config.active !== false ? 'pause' : 'play'}"></i>
+                            </button>
+                            <button class="action-btn view" 
+                                    onclick="viewMonitorConfig('${monitor.key}', '${encodeURIComponent(JSON.stringify(monitor.config))}')" 
+                                    title="查看配置">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="action-btn edit" 
+                                    onclick="editMonitor('${monitor.monitor_type}', '${monitor.key}', '${encodeURIComponent(JSON.stringify(monitor.config))}', '${monitor.account_id}')" 
+                                    title="编辑">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="action-btn delete" 
+                                    onclick="deleteMonitor('${monitor.key}')" 
+                                    title="删除">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+        
+        updatePagination(monitors.length);
+    }
+    
+    function getMonitorTypeIcon(type) {
+        const icons = {
+            'KeywordMonitor': 'bi bi-search',
+            'FileMonitor': 'bi bi-file-earmark',
+            'AIMonitor': 'bi bi-cpu',
+            'ButtonMonitor': 'bi bi-hand-index',
+            'ImageButtonMonitor': 'bi bi-image',
+            'AllMessagesMonitor': 'bi bi-globe'
+        };
+        return icons[type] || 'bi bi-eye';
+    }
+    
+    function getMonitorTypeName(type) {
+        const names = {
+            'KeywordMonitor': '关键词监控',
+            'FileMonitor': '文件监控',
+            'AIMonitor': 'AI监控',
+            'ButtonMonitor': '按钮监控',
+            'ImageButtonMonitor': '图片按钮监控',
+            'AllMessagesMonitor': '全量监控'
+        };
+        return names[type] || '未知类型';
+    }
+    
+    function getMatchTypeName(matchType) {
+        const matchMap = {
+            'partial': '部分匹配',
+            'exact': '精确匹配',
+            'regex': '正则匹配',
+            'contains': '包含匹配',
+            'starts_with': '开头匹配',
+            'ends_with': '结尾匹配'
+        };
+        return matchMap[matchType] || matchType || '部分匹配';
+    }
+    
+    function getExecutionModeName(mode) {
+        const modeMap = {
+            'merge': '合并执行',
+            'first_match': '首次匹配停止',
+            'all': '全部独立执行'
+        };
+        return modeMap[mode] || '合并执行';
+    }
+    
+    function getUserOptionName(option) {
+        const optionMap = {
+            '1': 'ID匹配',
+            '2': '用户名匹配',
+            '3': '昵称匹配'
+        };
+        return optionMap[option] || option || '未设置';
+    }
+    
+    function getMonitorStatusBadge(monitor) {
+        const isLimited = monitor.max_executions && monitor.execution_count >= monitor.max_executions;
+        
+        if (isLimited) {
+            return '<span style="padding: 4px 10px; background: rgba(245, 158, 11, 0.1); color: var(--warning-color); border-radius: var(--radius-full); font-size: 12px;">已达限制</span>';
+        } else {
+            return '<span style="padding: 4px 10px; background: rgba(16, 185, 129, 0.1); color: var(--success-color); border-radius: var(--radius-full); font-size: 12px;">活跃</span>';
+        }
+    }
+    
+    function getMonitorDisplayName(monitor) {
+        if (monitor.monitor_type === 'KeywordMonitor') {
+            return `${monitor.config.keyword || monitor.key}`;
+        } else if (monitor.monitor_type === 'FileMonitor') {
+            return `${monitor.config.file_extension || monitor.config.extension || monitor.key}`;
+        } else if (monitor.monitor_type === 'AIMonitor') {
+            return `AI监控: ${monitor.key}`;
+        } else if (monitor.monitor_type === 'ButtonMonitor') {
+            return `按钮: ${monitor.config.button_text || monitor.key}`;
+        } else if (monitor.monitor_type === 'ImageButtonMonitor') {
+            return `图片按钮: ${monitor.config.button_text || monitor.key}`;
+        }
+        return monitor.key;
+    }
+    
+    function formatDate(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+    
+    function updateMonitorStats(monitors) {
+        const total = monitors.length;
+        const active = monitors.filter(m => !m.max_executions || m.execution_count < m.max_executions).length;
+        
+        const typeCounts = {
+            'total': total,
+            'keyword': monitors.filter(m => m.monitor_type === 'KeywordMonitor').length,
+            'file': monitors.filter(m => m.monitor_type === 'FileMonitor').length,
+            'ai': monitors.filter(m => m.monitor_type === 'AIMonitor').length,
+            'button': monitors.filter(m => m.monitor_type === 'ButtonMonitor').length,
+            'image_button': monitors.filter(m => m.monitor_type === 'ImageButtonMonitor').length,
+            'all': monitors.filter(m => m.monitor_type === 'AllMessagesMonitor').length
+        };
+        
+        document.querySelectorAll('.monitor-type-tag').forEach((tag, index) => {
+            const count = tag.querySelector('.monitor-type-count');
+            if (count) {
+                if (index === 0) count.textContent = typeCounts.total;
+                else if (tag.textContent.includes('关键词')) count.textContent = typeCounts.keyword;
+                else if (tag.textContent.includes('文件')) count.textContent = typeCounts.file;
+                else if (tag.textContent.includes('AI')) count.textContent = typeCounts.ai;
+                else if (tag.textContent.includes('按钮监控') && !tag.textContent.includes('图片')) count.textContent = typeCounts.button;
+                else if (tag.textContent.includes('图片按钮')) count.textContent = typeCounts.image_button;
+                else if (tag.textContent.includes('全量')) count.textContent = typeCounts.all;
+            }
+        });
+    }
+    
+    function filterMonitors() {
+        if (currentFilter === 'all') {
+            filteredMonitors = [...monitors];
+        } else {
+            filteredMonitors = monitors.filter(monitor => monitor.monitor_type === currentFilter);
+        }
+        
+        currentPage = 1;
+        
+        console.log(`筛选结果: ${currentFilter} - 共 ${filteredMonitors.length} 个监控器`);
+    }
+    
+    function editMonitor(monitorType, monitorKey, monitorConfig, accountId) {
+        let urlType = '';
+        if (monitorType === 'KeywordMonitor') {
+            urlType = 'keyword';
+        } else if (monitorType === 'FileMonitor') {
+            urlType = 'file';
+        } else if (monitorType === 'AllMessagesMonitor') {
+            urlType = 'all_messages';
+        } else if (monitorType === 'ButtonMonitor') {
+            urlType = 'button';
+        } else if (monitorType === 'ImageButtonMonitor') {
+            urlType = 'image_button';
+        } else if (monitorType === 'AIMonitor') {
+            urlType = 'ai';
+        }
+        
+        if (urlType) {
+            window.location.href = `/wizard?type=${urlType}&edit=true&key=${encodeURIComponent(monitorKey)}&config=${monitorConfig}&account_id=${encodeURIComponent(accountId)}`;
+        } else {
+            alert('未知的监控器类型');
+        }
+    }
+    
+    function createNewMonitor() {
+        window.location.href = '/wizard?new=true&timestamp=' + Date.now();
+    }
+    
+    function viewMonitorConfig(monitorKey, encodedConfig) {
+        try {
+            const config = JSON.parse(decodeURIComponent(encodedConfig));
+            
+            const modal = document.createElement('div');
+            modal.className = 'config-modal-overlay';
+            
+            modal.innerHTML = `
+                <div class="config-modal-content">
+                    <div class="config-modal-header">
+                        <h5><i class="bi bi-gear"></i> 监控器配置详情</h5>
+                        <button class="config-modal-close" onclick="this.closest('.config-modal-overlay').remove(); document.body.style.overflow = '';">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    <div class="config-modal-body">
+                        <div class="monitor-config-grid">
+                            <div>
+                                <h6 style="color: var(--primary-color); margin-bottom: 12px;">基本信息</h6>
+                                <p><strong>监控器类型:</strong> ${getMonitorTypeName(config.monitor_type || 'Unknown')}</p>
+                                <p><strong>状态:</strong> <span style="color: ${config.active !== false ? 'var(--success-color)' : 'var(--warning-color)'};">${config.active !== false ? '运行中' : '已暂停'}</span></p>
+                                <p><strong>优先级:</strong> ${config.priority || 50}</p>
+                                <p><strong>执行模式:</strong> ${getExecutionModeName(config.execution_mode || 'merge')}</p>
+                                <p><strong>已执行次数:</strong> ${config.execution_count || 0}</p>
+                                <p><strong>最大执行次数:</strong> ${config.max_executions || '无限制'}</p>
+                                
+                                ${config.keyword ? `<h6 style="color: var(--info-color); margin: 16px 0 8px;">关键词配置</h6>
+                                <p><strong>关键词:</strong> ${config.keyword}</p>
+                                <p><strong>匹配模式:</strong> ${getMatchTypeName(config.match_type || 'partial')}</p>` : ''}
+                                
+                                ${config.chat_id ? `<h6 style="color: var(--info-color); margin: 16px 0 8px;">全量监控配置</h6>
+                                <p><strong>监控频道/群组:</strong> ${config.chat_id}</p>` : ''}
+                                
+                                ${config.file_extension ? `<h6 style="color: var(--info-color); margin: 16px 0 8px;">文件配置</h6>
+                                <p><strong>文件类型:</strong> ${config.file_extension}</p>
+                                <p><strong>保存目录:</strong> ${config.save_folder || '默认'}</p>
+                                <p><strong>最小大小:</strong> ${config.min_size || '无限制'}</p>
+                                <p><strong>最大大小:</strong> ${config.max_size || '无限制'}</p>` : ''}
+                                
+                                ${config.ai_prompt || config.button_keyword ? `<h6 style="color: var(--info-color); margin: 16px 0 8px;">AI/按钮配置</h6>
+                                ${config.ai_prompt ? `<p><strong>AI提示词:</strong> ${config.ai_prompt}</p>` : ''}
+                                ${config.confidence_threshold ? `<p><strong>置信阈值:</strong> ${config.confidence_threshold}</p>` : ''}
+                                ${config.ai_model ? `<p><strong>AI模型:</strong> ${config.ai_model}</p>` : ''}
+                                ${config.button_keyword ? `<p><strong>按钮关键词:</strong> ${config.button_keyword}</p>` : ''}
+                                ${config.mode ? `<p><strong>按钮模式:</strong> ${config.mode === 'ai' ? 'AI智能点击' : '关键词匹配'}</p>` : ''}` : ''}
+                            </div>
+                            
+                            <div>
+                                <h6 style="color: var(--success-color); margin-bottom: 12px;">动作配置</h6>
+                                <p><strong>监控聊天:</strong> ${config.chats && config.chats.length > 0 ? config.chats.join(', ') : '所有聊天'}</p>
+                                <p><strong>邮件通知:</strong> ${config.email_notify ? '已启用' : '已禁用'}</p>
+                                <p><strong>自动转发:</strong> ${config.auto_forward ? '已启用' : '已禁用'}</p>
+                                ${config.forward_targets && config.forward_targets.length > 0 ? `<p><strong>转发目标:</strong> ${config.forward_targets.join(', ')}</p>` : ''}
+                                <p><strong>增强转发:</strong> ${config.enhanced_forward ? '已启用' : '已禁用'}</p>
+                                
+                                <h6 style="color: var(--warning-color); margin: 16px 0 8px;">回复配置</h6>
+                                <p><strong>自动回复:</strong> ${config.reply_enabled ? '已启用' : '已禁用'}</p>
+                                ${config.reply_enabled ? `
+                                    ${config.reply_mode ? `<p><strong>回复模式:</strong> ${config.reply_mode === 'reply' ? '回复消息' : '直接发送'}</p>` : ''}
+                                    ${config.reply_content_type ? `<p><strong>回复内容类型:</strong> ${config.reply_content_type === 'ai' ? 'AI生成回复' : '自定义回复内容'}</p>` : ''}
+                                    ${config.reply_texts && config.reply_texts.length > 0 ? `
+                                        <p><strong>自定义回复内容:</strong></p>
+                                        <ul style="margin: 4px 0; padding-left: 20px;">
+                                            ${config.reply_texts.map(text => `<li>${text || '(空文本)'}</li>`).join('')}
+                                        </ul>
+                                    ` : ''}
+                                    ${config.ai_reply_prompt ? `<p><strong>AI回复提示词:</strong> ${config.ai_reply_prompt}</p>` : ''}
+                                    ${config.reply_delay_min !== undefined || config.reply_delay_max !== undefined ? `<p><strong>回复延时:</strong> ${config.reply_delay_min || 0} - ${config.reply_delay_max || 0} 秒</p>` : ''}
+                                ` : ''}
+                                
+                                <h6 style="color: var(--danger-color); margin: 16px 0 8px;">过滤配置</h6>
+                                ${config.blocked_users && config.blocked_users.length > 0 ? `<p><strong>屏蔽用户:</strong> ${config.blocked_users.join(', ')}</p>` : ''}
+                                ${config.blocked_channels && config.blocked_channels.length > 0 ? `<p><strong>屏蔽频道:</strong> ${config.blocked_channels.join(', ')}</p>` : ''}
+                                ${config.blocked_bots && config.blocked_bots.length > 0 ? `<p><strong>屏蔽Bot:</strong> ${config.blocked_bots.join(', ')}</p>` : ''}
+                                
+                                ${config.bot_ids && config.bot_ids.length > 0 ? `<p><strong>精确Bot ID:</strong> ${config.bot_ids.join(', ')}</p>` : ''}
+                                ${config.channel_ids && config.channel_ids.length > 0 ? `<p><strong>精确频道/群组ID:</strong> ${config.channel_ids.join(', ')}</p>` : ''}
+                                ${config.group_ids && config.group_ids.length > 0 ? `<p><strong>精确群组ID:</strong> ${config.group_ids.join(', ')}</p>` : ''}
+                                
+                                ${config.users && config.users.length > 0 ? `<p><strong>指定用户:</strong> ${config.users.join(', ')}</p>` : ''}
+                                ${config.user_option ? `<p><strong>用户匹配方式:</strong> ${getUserOptionName(config.user_option)}</p>` : ''}
+                            </div>
+                        </div>
+                        
+                        <details class="json-details">
+                            <summary>查看完整配置JSON</summary>
+                            <pre>${JSON.stringify(config, null, 2)}</pre>
+                        </details>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.remove();
+                    document.body.style.overflow = '';
+                }
+            });
+            
+            document.body.style.overflow = 'hidden';
+            
+        } catch (error) {
+            console.error('显示配置失败:', error);
+            showNotification('配置显示失败', 'error');
+        }
+    }
+    
+    async function deleteMonitor(monitorKey) {
+        if (!confirm('确定要删除这个监控器吗？此操作不可撤销。')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/monitors/${currentAccount}/${monitorKey}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                await loadMonitors(currentAccount);
+                showNotification('监控器删除成功', 'success');
+            } else {
+                showNotification('删除失败', 'error');
+            }
+        } catch (error) {
+            console.error('删除监控器失败:', error);
+            showNotification('删除失败: ' + error.message, 'error');
+        }
+    }
+    
+    function refreshMonitors() {
+        if (currentAccount) {
+            loadMonitors(currentAccount);
+        } else {
+            loadAccounts();
+        }
+    }
+    
+    function clearMonitorsList() {
+        const tbody = document.querySelector('.monitors-table tbody');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                    <i class="bi bi-info-circle"></i> 请选择账号查看监控器
+                </td>
+            </tr>
+        `;
+        
+        currentFilter = 'all';
+        currentPage = 1;
+        monitors = [];
+        filteredMonitors = [];
+        
+        document.querySelectorAll('.monitor-type-count').forEach(count => {
+            count.textContent = '0';
+        });
+        
+        document.querySelectorAll('.monitor-type-tag').forEach(t => t.classList.remove('active'));
+        document.querySelector('.monitor-type-tag').classList.add('active');
+    }
+    
+    function showNotification(message, type = 'info') {
+        const alertClass = {
+            'success': 'alert-success',
+            'error': 'alert-danger',
+            'warning': 'alert-warning',
+            'info': 'alert-info'
+        }[type] || 'alert-info';
+        
+        const notification = document.createElement('div');
+        notification.className = `alert ${alertClass} alert-dismissible fade show`;
+        notification.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 500px;';
+        notification.innerHTML = `
+            <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info-circle'}"></i>
+            ${message}
+            <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
+    }
+    
+    function updatePagination(totalItems) {
+        const paginationContainer = document.getElementById('pagination-container');
+        if (!paginationContainer) return;
+        
+        if (totalItems === 0) {
+            paginationContainer.innerHTML = '';
+            return;
+        }
+        
+        totalPages = Math.ceil(totalItems / itemsPerPage);
+        
+        let paginationHTML = '';
+        
+        paginationHTML += `
+            <button class="page-btn ${currentPage === 1 ? 'disabled' : ''}" 
+                    onclick="changePage(${currentPage - 1})" 
+                    ${currentPage === 1 ? 'disabled' : ''}>
+                <i class="bi bi-chevron-left"></i>
+            </button>
+        `;
+        
+        const maxVisiblePages = 5;
+        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+        
+        if (endPage - startPage + 1 < maxVisiblePages) {
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+        
+        if (startPage > 1) {
+            paginationHTML += `<button class="page-btn" onclick="changePage(1)">1</button>`;
+            if (startPage > 2) {
+                paginationHTML += `<span style="color: var(--text-muted); padding: 0 8px;">...</span>`;
+            }
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            paginationHTML += `
+                <button class="page-btn ${i === currentPage ? 'active' : ''}" 
+                        onclick="changePage(${i})">
+                    ${i}
+                </button>
+            `;
+        }
+        
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                paginationHTML += `<span style="color: var(--text-muted); padding: 0 8px;">...</span>`;
+            }
+            paginationHTML += `<button class="page-btn" onclick="changePage(${totalPages})">${totalPages}</button>`;
+        }
+        
+        paginationHTML += `
+            <button class="page-btn ${currentPage === totalPages ? 'disabled' : ''}" 
+                    onclick="changePage(${currentPage + 1})" 
+                    ${currentPage === totalPages ? 'disabled' : ''}>
+                <i class="bi bi-chevron-right"></i>
+            </button>
+        `;
+        
+        paginationHTML += `
+            <div class="page-info" style="margin-left: 20px; color: var(--text-secondary); font-size: 14px;">
+                显示第 ${(currentPage - 1) * itemsPerPage + 1} - ${Math.min(currentPage * itemsPerPage, totalItems)} 项，共 ${totalItems} 项
+            </div>
+        `;
+        
+        paginationContainer.innerHTML = paginationHTML;
+    }
+    
+    function changePage(page) {
+        if (page < 1 || page > totalPages || page === currentPage) {
+            return;
+        }
+        
+        currentPage = page;
+        renderMonitorsList(filteredMonitors);
+    }
+    
+    async function toggleMonitorStatus(monitorKey, currentActive) {
+        if (!confirm(`确定要${currentActive ? '暂停' : '启动'}这个监控器吗？`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/monitors/${currentAccount}/${monitorKey}/toggle`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({active: !currentActive})
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                await loadMonitors(currentAccount);
+                showNotification(result.message || `监控器已${!currentActive ? '启动' : '暂停'}`, 'success');
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || '状态更新失败');
+            }
+        } catch (error) {
+            console.error('切换监控器状态失败:', error);
+            showNotification('状态更新失败: ' + error.message, 'error');
+        }
+    }
+</script>
+{% endblock %} 
