@@ -628,7 +628,8 @@ class MonitorEngine(metaclass=Singleton):
                         self.logger.warning("AI服务未配置，跳过AI回复")
                         return
                 elif actions['reply_texts']:
-                    reply_text = random.choice(actions['reply_texts'])
+                    # NOSONAR - 用于随机选择回复文本以模拟人类行为，不需要密码学安全性
+                    reply_text = random.choice(actions['reply_texts'])  # NOSONAR
                 else:
                     self.logger.debug("没有可用的回复内容，跳过回复")
                     return
@@ -1071,8 +1072,8 @@ class MonitorEngine(metaclass=Singleton):
 
             random_delay = message_config.get('random_delay', message_config.get('random_offset', 0))
             if random_delay > 0:
-                import random
-                actual_delay = random.randint(0, random_delay)
+                import random  # NOSONAR - 用于模拟人类发送延迟，不需要密码学安全性
+                actual_delay = random.randint(0, random_delay)  # NOSONAR
                 self.logger.info(f"⏰ 定时消息延时发送: {actual_delay} 秒 (最大延时: {random_delay} 秒)")
                 await asyncio.sleep(actual_delay)
 
