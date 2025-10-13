@@ -1204,7 +1204,8 @@
     }
 
     function generateSessionId() {
-        return 'wizard_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        // NOSONAR - session ID仅用于临时会话标识，不需要密码学级别的安全性
+        return 'wizard_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);  // NOSONAR
     }
 
     function renderStep(stepData) {
