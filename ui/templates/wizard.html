@@ -1204,10 +1204,16 @@
     }
 
     function generateSessionId() {
-        // NOSONAR - session ID仅用于临时会话标识，不需要密码学级别的安全性
-        return 'wizard_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);  // NOSONAR
+        if (crypto && crypto.randomUUID) {
+            return 'wizard_' + Date.now() + '_' + crypto.randomUUID().replace(/-/g, '').substr(0, 9);
+        } else if (crypto && crypto.getRandomValues) {
+            const array = new Uint32Array(2);
+            crypto.getRandomValues(array);
+            return 'wizard_' + Date.now() + '_' + array[0].toString(36) + array[1].toString(36);
+        } else {
+            return 'wizard_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
     }
-
     function renderStep(stepData) {
         const step = stepData.step_data || stepData;
 
