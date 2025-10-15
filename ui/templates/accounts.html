@@ -1027,12 +1027,12 @@
         const passwordInput = document.getElementById('two_factor_password');
         const toggleButton = document.getElementById('togglePassword');
         
-        // NOSONAR - 这是HTML input type属性切换，用于显示/隐藏密码，不是硬编码密码
-        if (passwordInput.type === 'password') {
-            passwordInput.type = 'text';  // NOSONAR
+        const isPasswordHidden = passwordInput.type === 'password';  // NOSONAR
+        if (isPasswordHidden) {
+            passwordInput.type = 'text';
             toggleButton.innerHTML = '<i class="bi bi-eye-slash"></i>';
         } else {
-            passwordInput.type = 'password';  // NOSONAR
+            passwordInput.type = 'password';
             toggleButton.innerHTML = '<i class="bi bi-eye"></i>';
         }
     }
