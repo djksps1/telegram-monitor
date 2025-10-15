@@ -2,7 +2,7 @@
 图片和按钮监控器
 检测图片和按钮内容，发送给AI分析，根据AI结果点击按钮
 """
-
+import asyncio
 from typing import List, Optional, Dict, Any
 from models import MessageEvent, Account
 from models.config import ImageButtonConfig
@@ -10,14 +10,17 @@ from .base_monitor import BaseMonitor
 from services import AIService
 from utils.logger import get_logger
 
-
 class ImageButtonMonitor(BaseMonitor):
-    
     def __init__(self, config: ImageButtonConfig):
         super().__init__(config)
         self.image_button_config = config
         self.ai_service = AIService()
         self.logger = get_logger(__name__)
+    
+    def _read_image_base64(self, photo_path: str) -> str:
+        import base64
+        with open(photo_path, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode("utf-8")
     
     async def _match_condition(self, message_event: MessageEvent, account: Account) -> bool:
         message = message_event.message
