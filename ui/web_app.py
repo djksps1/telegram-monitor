@@ -1238,10 +1238,12 @@ class WebApp:
                 if channel_id:
                     try:
                         target_id = int(channel_id)
+                        if target_id == 0:
+                            raise HTTPException(status_code=400, detail="目标ID不能为0")
                     except ValueError:
-                        raise HTTPException(status_code=400, detail="无效的群组/频道ID")
+                        raise HTTPException(status_code=400, detail="无效的目标ID格式，请输入数字ID")
                 else:
-                    raise HTTPException(status_code=400, detail="群组/频道ID不能为空")
+                    raise HTTPException(status_code=400, detail="目标ID不能为空")
                 
                 max_executions = message.get("max_executions")
                 if max_executions == "" or max_executions is None:
