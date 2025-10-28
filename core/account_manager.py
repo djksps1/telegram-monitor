@@ -7,9 +7,8 @@ import json
 import logging
 import asyncio
 import socks
-import socket
 from pathlib import Path
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, Optional, List
 from telethon import TelegramClient, events
 from telethon.errors import SessionPasswordNeededError
 
@@ -320,87 +319,6 @@ class AccountManager(metaclass=Singleton):
 
 
 class AccountFactory:
-    
-    @staticmethod
-    def test_proxy_connection(proxy_config: Dict, timeout: int = 10) -> Tuple[bool, str]:
-        
-        Args:
-            proxy_config: 代理配置字典
-            timeout: 连接超时时间（秒）
-            
-        Returns:
-            Tuple[bool, str]: (是否成功, 消息)
-        """
-        logger = get_logger(__name__)
-        
-        try:
-            proxy_type = proxy_config.get('type')
-            proxy_host = proxy_config.get('host')
-            proxy_port = proxy_config.get('port')
-            proxy_user = proxy_config.get('username')
-            proxy_pass = proxy_config.get('password')
-            
-            if not all([proxy_type, proxy_host, proxy_port]):
-                return False, "代理配置不完整"
-            
-            if proxy_type == 'socks5':
-                socks_type = socks.SOCKS5
-            elif proxy_type == 'socks4':
-                socks_type = socks.SOCKS4
-            elif proxy_type == 'http':
-                socks_type = socks.HTTP
-            else:
-                return False, f"不支持的代理类型: {proxy_type}"
-            
-            sock = socks.socksocket()
-            sock.set_proxy(
-                proxy_type=socks_type,
-                addr=proxy_host,
-                port=int(proxy_port),
-                username=proxy_user if proxy_user else None,
-                password=proxy_pass if proxy_pass else None
-            )
-            sock.settimeout(timeout)
-            
-            test_host = "149.154.167.50"  # Telegram DC2
-            test_port = 443
-            
-            logger.info(f"正在测试代理连接: {proxy_type}://{proxy_host}:{proxy_port}")
-            if proxy_user:
-                logger.info(f"使用认证: 用户名={proxy_user}")
-            
-            try:
-                sock.connect((test_host, test_port))
-                sock.close()
-                
-                msg = f"代理连接成功 ({proxy_type}://{proxy_host}:{proxy_port})"
-                if proxy_user:
-                    msg += f" [认证用户: {proxy_user}]"
-                logger.info(msg)
-                return True, msg
-                
-            except socks.ProxyConnectionError as e:
-                msg = f"代理连接失败: {str(e)}"
-                logger.error(msg)
-                return False, msg
-            except socket.timeout:
-                msg = f"代理连接超时 (>{timeout}秒)"
-                logger.error(msg)
-                return False, msg
-            except Exception as e:
-                msg = f"代理测试失败: {str(e)}"
-                logger.error(msg)
-                return False, msg
-            finally:
-                try:
-                    sock.close()
-                except:
-                    pass
-                    
-        except Exception as e:
-            msg = f"代理配置错误: {str(e)}"
-            logger.error(msg)
-            return False, msg
     
     @staticmethod
     def create_account_config(
